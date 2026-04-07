@@ -6,7 +6,7 @@ import { getCurrentUser } from '@/lib/auth/session'
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser()
@@ -14,6 +14,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
+    const { id } = await params
     const body = await request.json()
     const { status, resultEventIds, feedbackEventIds, completedAt } = body
 
@@ -28,7 +29,7 @@ export async function PATCH(
       .set(updateData)
       .where(
         and(
-          eq(savedRequests.id, parseInt(params.id)),
+          eq(savedRequests.id, parseInt(id)),
           eq(savedRequests.userId, user.id)
         )
       )
