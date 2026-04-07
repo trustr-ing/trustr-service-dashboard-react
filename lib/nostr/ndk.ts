@@ -1,9 +1,8 @@
 import NDK, { NDKEvent, NDKNip07Signer, NDKPrivateKeySigner } from '@nostr-dev-kit/ndk'
 
 const DEFAULT_RELAYS = process.env.NEXT_PUBLIC_DEFAULT_RELAYS?.split(',') || [
+  'wss://relay.primal.net',
   'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://relay.nostr.band',
 ]
 
 let ndkInstance: NDK | null = null
