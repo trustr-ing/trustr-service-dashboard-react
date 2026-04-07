@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { eventId, templateId } = body
+    const { eventId, templateId, configData } = body
 
     if (!eventId) {
       return NextResponse.json({ error: 'Missing eventId' }, { status: 400 })
@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         eventId,
         templateId: templateId || null,
+        configData: configData ? JSON.stringify(configData) : '{}',
         status: 'pending',
       })
       .returning()

@@ -93,3 +93,46 @@ export function getFeedbackStatus(event: NDKEvent): string | null {
   const statusTag = event.tags.find((t) => t[0] === 'status')
   return statusTag ? statusTag[1] : null
 }
+
+export interface ParsedFeedbackEvent {
+  id: string
+  requestEventId: string | null
+  status: string | null
+  message: string
+  timestamp: number
+}
+
+export function parseFeedbackEvent(event: NDKEvent): ParsedFeedbackEvent {
+  return {
+    id: event.id,
+    requestEventId: getRequestEventId(event),
+    status: getFeedbackStatus(event),
+    message: event.content,
+    timestamp: event.created_at || 0,
+  }
+}
+
+export interface ParsedOutputEvent {
+  id: string
+  requestEventId: string | null
+  content: string
+  data: Record<string, unknown>
+  timestamp: number
+}
+
+export function parseOutputEvent(event: NDKEvent): ParsedOutputEvent {
+  let data: Record<string, unknown> = {}
+  try {
+    data = JSON.parse(event.content)
+  } catch {
+    data = { raw: event.content }
+  }
+
+  return {
+    id: event.id,
+    requestEventId: getRequestEventId(event),
+    content: event.content,
+    data,
+    timestamp: event.created_at || 0,
+  }
+}

@@ -91,36 +91,38 @@ export default function RequestsPage() {
             const feedbackCount = request.feedbackEventIds ? JSON.parse(request.feedbackEventIds).length : 0
             
             return (
-              <Card key={request.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">
-                        Request {request.eventId.slice(0, 8)}...
-                      </CardTitle>
-                      <CardDescription>
-                        Published {format(new Date(request.publishedAt), 'PPp')}
-                      </CardDescription>
-                    </div>
-                    {getStatusBadge(request.status)}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
-                    <div>
-                      <span className="font-medium">{resultCount}</span> results
-                    </div>
-                    <div>
-                      <span className="font-medium">{feedbackCount}</span> feedback events
-                    </div>
-                    {request.completedAt && (
-                      <div>
-                        Completed {format(new Date(request.completedAt), 'PPp')}
+              <Link key={request.id} href={`/dashboard/requests/${request.id}`}>
+                <Card className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors cursor-pointer">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <CardTitle className="text-lg">
+                          Request {request.eventId.slice(0, 8)}...
+                        </CardTitle>
+                        <CardDescription>
+                          Published {format(new Date(request.publishedAt), 'PPp')}
+                        </CardDescription>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      {getStatusBadge(request.status)}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
+                      <div>
+                        <span className="font-medium">{resultCount}</span> results
+                      </div>
+                      <div>
+                        <span className="font-medium">{feedbackCount}</span> feedback events
+                      </div>
+                      {request.completedAt && (
+                        <div>
+                          Completed {format(new Date(request.completedAt), 'PPp')}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             )
           })}
         </div>

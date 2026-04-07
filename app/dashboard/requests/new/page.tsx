@@ -59,7 +59,10 @@ export default function NewRequestPage() {
       await fetch('/api/requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eventId: event.id }),
+        body: JSON.stringify({ 
+          eventId: event.id,
+          configData: formData,
+        }),
       })
 
       router.push('/dashboard/requests')

@@ -53,6 +53,7 @@ export const savedRequests = sqliteTable('saved_requests', {
     onDelete: 'set null',
   }),
   eventId: text('event_id').notNull().unique(),
+  configData: text('config_data').notNull().default('{}'),
   status: text('status').notNull().default('pending'),
   publishedAt: integer('published_at', { mode: 'timestamp' })
     .notNull()
