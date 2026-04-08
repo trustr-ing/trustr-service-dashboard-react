@@ -24,6 +24,9 @@ export default function SemanticRankingRequestPage() {
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isUpdate, setIsUpdate] = useState(false)
+  const [originalEventId, setOriginalEventId] = useState<string | null>(null)
+  const [dTag, setDTag] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchUserPubkey = async () => {
@@ -33,7 +36,9 @@ export default function SemanticRankingRequestPage() {
           const user = await signer.user()
           if (user.pubkey) {
             setUserPubkey(user.pubkey)
-            setFormData(prev => ({ ...prev, pov: user.pubkey }))
+            if (!isUpdate) {
+              setFormData(prev => ({ ...prev, pov: user.pubkey }))
+            }
           }
         }
       } catch (err) {
@@ -41,7 +46,46 @@ export default function SemanticRankingRequestPage() {
       }
     }
     fetchUserPubkey()
+  }, [isUpdate])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const updateMode = params.get('update') === 'true'
+    const eventId = params.get('eventId')
+    
+    if (updateMode && eventId) {
+      setIsUpdate(true)
+      setOriginalEventId(eventId)
+      
+      // Pre-fill form with query params
+      const newFormData: Record<string, string> = {}
+      params.forEach((value, key) => {
+        if (key !== 'update' && key !== 'eventId') {
+          newFormData[key] = value
+        }
+      })
+      
+      setFormData(prev => ({ ...prev, ...newFormData }))
+      
+      // Fetch the original event to get the d tag
+      fetchOriginalDTag(eventId)
+    }
   }, [])
+
+  const fetchOriginalDTag = async (eventId: string) => {
+    try {
+      const ndk = getNDK()
+      const event = await ndk.fetchEvent(eventId)
+      if (event) {
+        const dTagArray = event.tags.find((t: string[]) => t[0] === 'd')
+        if (dTagArray && dTagArray[1]) {
+          setDTag(dTagArray[1])
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch original d tag:', err)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,8 +105,10 @@ export default function SemanticRankingRequestPage() {
       event.kind = 37572
       event.content = ''
       
+      const requestDTag = dTag || `request-${Date.now()}`
+      
       event.tags = [
-        ['d', `request-${Date.now()}`],
+        ['d', requestDTag],
         ['p', SEMANTIC_PUBKEY],
         ['k', '37573'],
       ]
@@ -110,16 +156,26 @@ export default function SemanticRankingRequestPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Semantic Ranking Request</h2>
+        <h2 className="text-3xl font-bold tracking-tight">
+          {isUpdate ? 'Update Semantic Ranking Request' : 'Semantic Ranking Request'}
+        </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Rank pubkeys using semantic similarity and social graph embeddings
+          {isUpdate 
+            ? `Updating request ${originalEventId?.slice(0, 8)}... - This will re-trigger the ranking service`
+            : 'Rank pubkeys using semantic similarity and social graph embeddings'
+          }
         </p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Request Configuration</CardTitle>
-          <CardDescription>Configure your semantic ranking request</CardDescription>
+          <CardDescription>
+            {isUpdate 
+              ? 'Modify the configuration and publish to update this request'
+              : 'Configure your semantic ranking request'
+            }
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -319,12 +375,15 @@ export default function SemanticRankingRequestPage() {
 
             <div className="flex gap-2">
               <Button type="submit" disabled={loading}>
-                {loading ? 'Publishing...' : 'Publish Request'}
+                {loading 
+                  ? (isUpdate ? 'Updating...' : 'Publishing...') 
+                  : (isUpdate ? 'Update Request' : 'Publish Request')
+                }
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push('/dashboard/requests/new')}
+                onClick={() => router.push(isUpdate ? `/dashboard/requests/${originalEventId}` : '/dashboard/requests/new')}
               >
                 Cancel
               </Button>

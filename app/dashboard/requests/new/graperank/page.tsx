@@ -38,6 +38,9 @@ export default function GrapeRankRequestPage() {
   const [interpreters, setInterpreters] = useState<Interpreter[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isUpdate, setIsUpdate] = useState(false)
+  const [originalEventId, setOriginalEventId] = useState<string | null>(null)
+  const [dTag, setDTag] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchUserPubkey = async () => {
@@ -47,7 +50,9 @@ export default function GrapeRankRequestPage() {
           const user = await signer.user()
           if (user.pubkey) {
             setUserPubkey(user.pubkey)
-            setFormData(prev => ({ ...prev, pov: user.pubkey }))
+            if (!isUpdate) {
+              setFormData(prev => ({ ...prev, pov: user.pubkey }))
+            }
           }
         }
       } catch (err) {
@@ -55,7 +60,81 @@ export default function GrapeRankRequestPage() {
       }
     }
     fetchUserPubkey()
+  }, [isUpdate])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const updateMode = params.get('update') === 'true'
+    const eventId = params.get('eventId')
+    
+    if (updateMode && eventId) {
+      setIsUpdate(true)
+      setOriginalEventId(eventId)
+      
+      // Pre-fill form with query params
+      const newFormData: Record<string, string> = {
+        title: params.get('title') || '',
+        pov: params.get('pov') || '',
+        type: params.get('type') || 'p',
+        minrank: params.get('minrank') || '0',
+        attenuation: params.get('attenuation') || '0.5',
+        rigor: params.get('rigor') || '0.5',
+        precision: params.get('precision') || '0.00001',
+      }
+      setFormData(newFormData)
+      
+      // Parse interpreters if present
+      const interpretersStr = params.get('interpreters')
+      if (interpretersStr) {
+        try {
+          const parsedInterpreters = JSON.parse(interpretersStr)
+          // Convert from GrapeRank format back to UI format
+          const uiInterpreters = parsedInterpreters.map((int: { id: string; params?: Record<string, unknown>; iterate?: number }) => {
+            const typeMap: Record<string, string> = {
+              'nostr-3': 'follows',
+              'nostr-10000': 'mutes',
+              'nostr-1984': 'reports',
+              'nostr-1-t': 'hashtags',
+              'nostr-9735': 'zaps',
+              'nostr-31873': 'attestor_recommendations',
+              'nostr-31871': 'attestations',
+            }
+            return {
+              type: typeMap[int.id] || int.id,
+              actorType: int.params?.actorType || 'p',
+              subjectType: int.params?.subjectType || 'p',
+              iterate: int.iterate || 1,
+              params: {
+                value: int.params?.value ?? 1.0,
+                confidence: int.params?.confidence ?? 1.0,
+              }
+            }
+          })
+          setInterpreters(uiInterpreters)
+        } catch (err) {
+          console.error('Failed to parse interpreters:', err)
+        }
+      }
+      
+      // Fetch the original event to get the d tag
+      fetchOriginalDTag(eventId)
+    }
   }, [])
+
+  const fetchOriginalDTag = async (eventId: string) => {
+    try {
+      const ndk = getNDK()
+      const event = await ndk.fetchEvent(eventId)
+      if (event) {
+        const dTagArray = event.tags.find((t: string[]) => t[0] === 'd')
+        if (dTagArray && dTagArray[1]) {
+          setDTag(dTagArray[1])
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch original d tag:', err)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -99,7 +178,7 @@ export default function GrapeRankRequestPage() {
         ...(grapeRankInterpreters.length > 0 ? { interpreters: JSON.stringify(grapeRankInterpreters) } : {})
       }
 
-      const event = buildServiceRequestEvent('trustr_graperank', GRAPERANK_PUBKEY, configData as ServiceRequestConfig)
+      const event = buildServiceRequestEvent('trustr_graperank', GRAPERANK_PUBKEY, configData as ServiceRequestConfig, 37573, dTag || undefined)
       
       await event.sign(signer)
       await event.publish()
@@ -125,16 +204,26 @@ export default function GrapeRankRequestPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">GrapeRank Request</h2>
+        <h2 className="text-3xl font-bold tracking-tight">
+          {isUpdate ? 'Update GrapeRank Request' : 'GrapeRank Request'}
+        </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Rank Nostr users by trust using follows, mutes, reports, zaps, and attestations
+          {isUpdate 
+            ? `Updating request ${originalEventId?.slice(0, 8)}... - This will re-trigger the ranking service`
+            : 'Rank Nostr users by trust using follows, mutes, reports, zaps, and attestations'
+          }
         </p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Request Configuration</CardTitle>
-          <CardDescription>Configure your GrapeRank ranking request</CardDescription>
+          <CardDescription>
+            {isUpdate 
+              ? 'Modify the configuration and publish to update this request'
+              : 'Configure your GrapeRank ranking request'
+            }
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -263,12 +352,15 @@ export default function GrapeRankRequestPage() {
 
             <div className="flex gap-2">
               <Button type="submit" disabled={loading}>
-                {loading ? 'Publishing...' : 'Publish Request'}
+                {loading 
+                  ? (isUpdate ? 'Updating...' : 'Publishing...') 
+                  : (isUpdate ? 'Update Request' : 'Publish Request')
+                }
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.push('/dashboard/requests/new')}
+                onClick={() => router.push(isUpdate ? `/dashboard/requests/${originalEventId}` : '/dashboard/requests/new')}
               >
                 Cancel
               </Button>

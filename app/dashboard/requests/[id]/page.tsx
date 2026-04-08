@@ -138,6 +138,9 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
           </p>
         </div>
         <div className="flex gap-2">
+          <Link href={`/dashboard/requests/update/${request.eventId}`}>
+            <Button>Update Request</Button>
+          </Link>
           <Button variant="destructive" onClick={handleDelete}>
             Delete Request
           </Button>

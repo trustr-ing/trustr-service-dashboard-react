@@ -17,7 +17,8 @@ export function buildServiceRequestEvent(
   serviceId: string,
   servicePubkey: string,
   config: ServiceRequestConfig,
-  outputKind: number = 37573
+  outputKind: number = 37573,
+  dTag?: string
 ): NDKEvent {
   const ndk = getNDK()
   const event = new NDKEvent(ndk)
@@ -25,8 +26,10 @@ export function buildServiceRequestEvent(
   event.kind = 37572
   event.content = ''
   
+  const requestDTag = dTag || `request-${Date.now()}`
+  
   event.tags = [
-    ['d', `request-${Date.now()}`],
+    ['d', requestDTag],
     ['p', servicePubkey],
     ['k', String(outputKind)],
   ]
