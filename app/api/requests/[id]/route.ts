@@ -16,11 +16,19 @@ export async function GET(
 
     const { id } = await params
 
+    // Check if id is numeric (database id) or hex string (eventId)
+    const isNumeric = /^\d+$/.test(id)
+    
     const [savedRequest] = await db.query.savedRequests.findMany({
-      where: and(
-        eq(savedRequests.id, parseInt(id)),
-        eq(savedRequests.userId, user.id)
-      ),
+      where: isNumeric 
+        ? and(
+            eq(savedRequests.id, parseInt(id)),
+            eq(savedRequests.userId, user.id)
+          )
+        : and(
+            eq(savedRequests.eventId, id),
+            eq(savedRequests.userId, user.id)
+          ),
       limit: 1,
     })
 
