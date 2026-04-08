@@ -77,17 +77,44 @@ export function useServiceAnnouncements(): UseServiceAnnouncementsResult {
       }
       
       const data = await response.json()
-      const healthyServiceIds = data.services
-        .filter((s: { healthy: boolean }) => s.healthy)
-        .map((s: { serviceId: string }) => s.serviceId)
       
-      console.log('Healthy service IDs:', healthyServiceIds)
+      // Build a map of serviceId -> expected pubkey for validation
+      const serviceMap = new Map<string, string>()
+      data.services
+        .filter((s: { healthy: boolean }) => s.healthy)
+        .forEach((s: { serviceId: string; pubkey: string }) => {
+          serviceMap.set(s.serviceId, s.pubkey)
+        })
+      
+      console.log('Healthy services:', Array.from(serviceMap.entries()))
       console.log('Total announcements:', announcements.length)
       
-      const filtered = announcements.filter(a => healthyServiceIds.includes(a.serviceId))
-      console.log('Filtered announcements:', filtered.length)
+      // Filter by healthy services AND verify pubkey matches
+      const filtered = announcements.filter(a => {
+        const expectedPubkey = serviceMap.get(a.serviceId)
+        if (!expectedPubkey) return false
+        
+        // Verify both serviceId exists AND pubkey matches
+        const matches = a.pubkey === expectedPubkey
+        if (!matches) {
+          console.warn(`Announcement for ${a.serviceId} has wrong pubkey: ${a.pubkey} (expected: ${expectedPubkey})`)
+        }
+        return matches
+      })
       
-      return filtered
+      // Deduplicate: keep only the most recent announcement per serviceId
+      const deduped = new Map<string, ServiceAnnouncement>()
+      filtered.forEach(announcement => {
+        const existing = deduped.get(announcement.serviceId)
+        if (!existing || announcement.timestamp > existing.timestamp) {
+          deduped.set(announcement.serviceId, announcement)
+        }
+      })
+      
+      const result = Array.from(deduped.values())
+      console.log('Filtered announcements:', result.length)
+      
+      return result
     } catch (err) {
       console.warn('Error filtering services, showing all announcements:', err)
       return announcements
