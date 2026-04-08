@@ -50,9 +50,13 @@ export default function GrapeRankRequestPage() {
           const user = await signer.user()
           if (user.pubkey) {
             setUserPubkey(user.pubkey)
-            if (!isUpdate) {
-              setFormData(prev => ({ ...prev, pov: user.pubkey }))
-            }
+            // Always populate POV with user's pubkey if it's empty
+            setFormData(prev => {
+              if (!prev.pov || prev.pov === '') {
+                return { ...prev, pov: user.pubkey }
+              }
+              return prev
+            })
           }
         }
       } catch (err) {
