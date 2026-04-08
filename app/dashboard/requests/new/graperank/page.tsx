@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { POVSelector } from '@/components/POVSelector'
+import { POVInput } from '@/components/POVInput'
 import { InterpreterBuilder } from '@/components/InterpreterBuilder'
 import { getNDK, getNip07Signer } from '@/lib/nostr/ndk'
 import { buildServiceRequestEvent, type ServiceRequestConfig } from '@/lib/nostr/events'
@@ -15,14 +15,19 @@ interface Interpreter {
   type: string
   actorType?: string
   subjectType?: string
-  minrank?: number
-  attenuation?: number
-  rigor?: number
+  iterate?: number
+  params?: {
+    value?: number
+    confidence?: number
+    [key: string]: number | string | undefined
+  }
 }
 
 export default function GrapeRankRequestPage() {
   const router = useRouter()
+  const [userPubkey, setUserPubkey] = useState<string>('')
   const [formData, setFormData] = useState<Record<string, string>>({
+    title: '',
     pov: '',
     type: 'p',
     minrank: '0',
@@ -33,6 +38,24 @@ export default function GrapeRankRequestPage() {
   const [interpreters, setInterpreters] = useState<Interpreter[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchUserPubkey = async () => {
+      try {
+        const signer = await getNip07Signer()
+        if (signer) {
+          const user = await signer.user()
+          if (user.pubkey) {
+            setUserPubkey(user.pubkey)
+            setFormData(prev => ({ ...prev, pov: user.pubkey }))
+          }
+        }
+      } catch (err) {
+        console.error('Failed to get user pubkey:', err)
+      }
+    }
+    fetchUserPubkey()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -94,10 +117,29 @@ export default function GrapeRankRequestPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
-              <POVSelector
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="e.g., Bitcoin Core Contributors"
+                  disabled={loading}
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  A descriptive title for this ranking request
+                </p>
+              </div>
+
+              <POVInput
                 value={formData.pov}
                 onChange={(value) => setFormData({ ...formData, pov: value })}
                 disabled={loading}
+                userPubkey={userPubkey}
               />
 
               <div>

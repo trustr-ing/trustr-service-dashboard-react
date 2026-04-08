@@ -2,6 +2,7 @@ import { NDKEvent } from '@nostr-dev-kit/ndk'
 import { getNDK } from './ndk'
 
 export interface ServiceRequestConfig {
+  title?: string
   pov: string
   type: string
   minrank?: string
@@ -30,8 +31,13 @@ export function buildServiceRequestEvent(
     ['k', String(outputKind)],
   ]
   
+  // Add title as separate tag if provided
+  if (config.title) {
+    event.tags.push(['title', config.title])
+  }
+  
   for (const [key, value] of Object.entries(config)) {
-    if (value !== undefined && value !== '') {
+    if (value !== undefined && value !== '' && key !== 'title') {
       event.tags.push(['config', key, value])
     }
   }

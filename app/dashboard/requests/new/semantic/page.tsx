@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { POVSelector } from '@/components/POVSelector'
+import { POVInput } from '@/components/POVInput'
 import { getNDK, getNip07Signer } from '@/lib/nostr/ndk'
 import { NDKEvent } from '@nostr-dev-kit/ndk'
 
@@ -12,7 +12,9 @@ const SEMANTIC_PUBKEY = '68bb72c016397a902d087a7ad594e9e10c070bc3158d0af77d708d0
 
 export default function SemanticRankingRequestPage() {
   const router = useRouter()
+  const [userPubkey, setUserPubkey] = useState<string>('')
   const [formData, setFormData] = useState<Record<string, string>>({
+    title: '',
     pov: '',
     type: 'p',
     model: 'fused',
@@ -22,6 +24,24 @@ export default function SemanticRankingRequestPage() {
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchUserPubkey = async () => {
+      try {
+        const signer = await getNip07Signer()
+        if (signer) {
+          const user = await signer.user()
+          if (user.pubkey) {
+            setUserPubkey(user.pubkey)
+            setFormData(prev => ({ ...prev, pov: user.pubkey }))
+          }
+        }
+      } catch (err) {
+        console.error('Failed to get user pubkey:', err)
+      }
+    }
+    fetchUserPubkey()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,6 +66,9 @@ export default function SemanticRankingRequestPage() {
         ['p', SEMANTIC_PUBKEY],
         ['k', '37573'],
       ]
+      
+      // Add title tag
+      if (formData.title) event.tags.push(['title', formData.title])
       
       // Add config tags
       if (formData.pov) event.tags.push(['config', 'pov', formData.pov])
@@ -101,10 +124,29 @@ export default function SemanticRankingRequestPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
-              <POVSelector
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Title <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="e.g., Nostr Relay Developers"
+                  disabled={loading}
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  A descriptive title for this ranking request
+                </p>
+              </div>
+
+              <POVInput
                 value={formData.pov}
                 onChange={(value) => setFormData({ ...formData, pov: value })}
                 disabled={loading}
+                userPubkey={userPubkey}
               />
 
               <div>

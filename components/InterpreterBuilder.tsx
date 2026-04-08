@@ -6,8 +6,12 @@ interface Interpreter {
   type: string
   actorType?: string
   subjectType?: string
-  iterate?: boolean
-  params?: Record<string, number | string>
+  iterate?: number
+  params?: {
+    value?: number
+    confidence?: number
+    [key: string]: number | string | undefined
+  }
 }
 
 interface InterpreterBuilderProps {
@@ -168,22 +172,69 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
                   </div>
 
                   <div className="pt-2 border-t space-y-3">
-                    <label className="flex items-center gap-2">
+                    <div>
+                      <label className="block text-xs font-medium mb-1">
+                        Iterate (Depth of Search)
+                      </label>
                       <input
-                        type="checkbox"
-                        checked={interpreter.iterate || false}
-                        onChange={(e) => updateInterpreter(index, { iterate: e.target.checked })}
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={interpreter.iterate || 1}
+                        onChange={(e) => updateInterpreter(index, { iterate: parseInt(e.target.value) || 1 })}
                         disabled={disabled}
-                        className="rounded"
+                        className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5"
                       />
-                      <span className="text-xs font-medium">Iterate</span>
-                    </label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        How many degrees of separation to iterate when discovering new actors/subjects
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium">Standard Parameters</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Value</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={interpreter.params?.value ?? 1.0}
+                            onChange={(e) => updateInterpreter(index, { 
+                              params: { 
+                                ...(interpreter.params || {}), 
+                                value: parseFloat(e.target.value) || 1.0 
+                              }
+                            })}
+                            disabled={disabled}
+                            className="w-full text-xs rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Confidence</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={interpreter.params?.confidence ?? 1.0}
+                            onChange={(e) => updateInterpreter(index, { 
+                              params: { 
+                                ...(interpreter.params || {}), 
+                                confidence: parseFloat(e.target.value) || 1.0 
+                              }
+                            })}
+                            disabled={disabled}
+                            className="w-full text-xs rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
 
                     {showAdvanced && (
                       <div className="space-y-2">
-                        <label className="block text-xs font-medium">Parameters (Optional)</label>
+                        <label className="block text-xs font-medium">Custom Parameters (Optional)</label>
                         <div className="space-y-2">
-                          {Object.entries(interpreter.params || {}).map(([key, value]) => (
+                          {Object.entries(interpreter.params || {})
+                            .filter(([key]) => key !== 'value' && key !== 'confidence')
+                            .map(([key, value]) => (
                             <div key={key} className="flex gap-2 items-center">
                               <input
                                 type="text"
