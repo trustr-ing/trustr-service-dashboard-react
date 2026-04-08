@@ -70,7 +70,7 @@ export function useServiceAnnouncements(): UseServiceAnnouncementsResult {
 
   const filterActiveServices = async (announcements: ServiceAnnouncement[]): Promise<ServiceAnnouncement[]> => {
     try {
-      const response = await fetch('http://167.99.181.211:3002/services')
+      const response = await fetch('/api/services')
       if (!response.ok) {
         console.warn('Failed to fetch active services, showing all announcements')
         return announcements
@@ -81,7 +81,13 @@ export function useServiceAnnouncements(): UseServiceAnnouncementsResult {
         .filter((s: { healthy: boolean }) => s.healthy)
         .map((s: { serviceId: string }) => s.serviceId)
       
-      return announcements.filter(a => healthyServiceIds.includes(a.serviceId))
+      console.log('Healthy service IDs:', healthyServiceIds)
+      console.log('Total announcements:', announcements.length)
+      
+      const filtered = announcements.filter(a => healthyServiceIds.includes(a.serviceId))
+      console.log('Filtered announcements:', filtered.length)
+      
+      return filtered
     } catch (err) {
       console.warn('Error filtering services, showing all announcements:', err)
       return announcements
