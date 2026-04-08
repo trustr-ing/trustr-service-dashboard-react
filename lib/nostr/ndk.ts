@@ -1,6 +1,7 @@
 import NDK, { NDKEvent, NDKNip07Signer, NDKPrivateKeySigner } from '@nostr-dev-kit/ndk'
 
 const DEFAULT_RELAYS = [
+  'wss://cache.trustr.ing',
   'wss://relay.primal.net',
   'wss://relay.damus.io',
 ]
