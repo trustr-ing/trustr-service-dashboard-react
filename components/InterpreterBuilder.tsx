@@ -21,13 +21,13 @@ interface InterpreterBuilderProps {
 }
 
 const INTERPRETER_TYPES = [
-  { value: 'follows', label: 'Follows (Kind 3)', actorTypes: ['p'], subjectTypes: ['p'] },
-  { value: 'mutes', label: 'Mutes (Kind 10000)', actorTypes: ['p'], subjectTypes: ['p'] },
-  { value: 'reports', label: 'Reports (Kind 1984)', actorTypes: ['p'], subjectTypes: ['p', 'e'] },
-  { value: 'hashtags', label: 'Hashtags (Kind 1)', actorTypes: ['p'], subjectTypes: ['t'] },
-  { value: 'zaps', label: 'Zaps (Kind 9735)', actorTypes: ['p'], subjectTypes: ['p', 'e'] },
-  { value: 'attestor_recommendations', label: 'Attestor Recommendations', actorTypes: ['p'], subjectTypes: ['p'] },
-  { value: 'attestations', label: 'Attestations', actorTypes: ['p'], subjectTypes: ['p'] },
+  { value: 'follows', id: 'nostr-3', label: 'Follows (Kind 3)', actorTypes: ['pubkey', 'p'], subjectTypes: ['p'] },
+  { value: 'mutes', id: 'nostr-10000', label: 'Mutes (Kind 10000)', actorTypes: ['pubkey', 'p'], subjectTypes: ['p'] },
+  { value: 'reports', id: 'nostr-1984', label: 'Reports (Kind 1984)', actorTypes: ['pubkey', 'p'], subjectTypes: ['p', 'e'] },
+  { value: 'hashtags', id: 'nostr-1-t', label: 'Hashtags (Kind 1)', actorTypes: ['pubkey'], subjectTypes: ['t'] },
+  { value: 'zaps', id: 'nostr-9735', label: 'Zaps (Kind 9735)', actorTypes: ['P', 'p'], subjectTypes: ['P', 'p', 'e'] },
+  { value: 'attestor_recommendations', id: 'nostr-31873', label: 'Attestor Recommendations', actorTypes: ['pubkey'], subjectTypes: ['pubkey', 'p', 'd'] },
+  { value: 'attestations', id: 'nostr-31871', label: 'Attestations', actorTypes: ['pubkey'], subjectTypes: ['a', 'p'] },
 ]
 
 export function InterpreterBuilder({ interpreters, onChange, disabled }: InterpreterBuilderProps) {

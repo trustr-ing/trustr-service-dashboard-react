@@ -71,10 +71,32 @@ export default function GrapeRankRequestPage() {
       const ndk = getNDK()
       ndk.signer = signer
 
+      // Map interpreter types to GrapeRank IDs
+      const interpreterTypeMap: Record<string, string> = {
+        'follows': 'nostr-3',
+        'mutes': 'nostr-10000',
+        'reports': 'nostr-1984',
+        'hashtags': 'nostr-1-t',
+        'zaps': 'nostr-9735',
+        'attestor_recommendations': 'nostr-31873',
+        'attestations': 'nostr-31871',
+      }
+
+      // Transform interpreters to GrapeRank format
+      const grapeRankInterpreters = interpreters.map(int => ({
+        id: interpreterTypeMap[int.type] || int.type,
+        params: {
+          ...int.params,
+          actorType: int.actorType,
+          subjectType: int.subjectType,
+        },
+        ...(int.iterate ? { iterate: int.iterate } : {})
+      }))
+
       // Merge form data with interpreters as JSON
       const configData = {
         ...formData,
-        ...(interpreters.length > 0 ? { interpreters: JSON.stringify(interpreters) } : {})
+        ...(grapeRankInterpreters.length > 0 ? { interpreters: JSON.stringify(grapeRankInterpreters) } : {})
       }
 
       const event = buildServiceRequestEvent('trustr_graperank', GRAPERANK_PUBKEY, configData as ServiceRequestConfig)
