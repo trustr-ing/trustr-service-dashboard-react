@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { format } from 'date-fns'
 import { useRequestMonitor } from '@/lib/hooks/useRequestMonitor'
+import { ResultsTable, parseOutputEventResults } from '@/components/ResultsTable'
+import { deleteEvent } from '@/lib/nostr/deletion'
 import Link from 'next/link'
 
 interface SavedRequest {
@@ -86,6 +88,26 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
     }
   }, [outputEvents.length, request, updateRequestStatus])
 
+  const handleDelete = async () => {
+    if (!request || !confirm('Are you sure you want to delete this request? This will publish a NIP-09 deletion event.')) {
+      return
+    }
+
+    try {
+      await deleteEvent(request.eventId)
+      
+      // Delete from local database
+      await fetch(`/api/requests/${requestId}`, {
+        method: 'DELETE',
+      })
+      
+      router.push('/dashboard/requests')
+    } catch (error) {
+      console.error('Failed to delete request:', error)
+      alert('Failed to delete request: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -115,9 +137,14 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
             Published {format(new Date(request.publishedAt), 'PPp')}
           </p>
         </div>
-        <Link href="/dashboard/requests">
-          <Button variant="outline">Back to Requests</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Button variant="destructive" onClick={handleDelete}>
+            Delete Request
+          </Button>
+          <Link href="/dashboard/requests">
+            <Button variant="outline">Back to Requests</Button>
+          </Link>
+        </div>
       </div>
 
       <Card>
@@ -169,10 +196,18 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
         </CardContent>
       </Card>
 
+      {outputEvents.length > 0 && (
+        <ResultsTable
+          results={outputEvents.flatMap(output => parseOutputEventResults(output.data))}
+          title={`Ranked Results (${outputEvents.flatMap(output => parseOutputEventResults(output.data)).length})`}
+          description="Top ranked pubkeys from the service"
+        />
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Output Events ({outputEvents.length})</CardTitle>
-          <CardDescription>Result events from the service</CardDescription>
+          <CardDescription>Raw result events from the service</CardDescription>
         </CardHeader>
         <CardContent>
           {outputEvents.length === 0 ? (
@@ -194,9 +229,14 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
                       {format(new Date(output.timestamp * 1000), 'PPp')}
                     </span>
                   </div>
-                  <pre className="bg-gray-50 dark:bg-gray-900 p-3 rounded text-xs overflow-x-auto">
-                    {JSON.stringify(output.data, null, 2)}
-                  </pre>
+                  <details className="cursor-pointer">
+                    <summary className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      View raw event data
+                    </summary>
+                    <pre className="bg-gray-50 dark:bg-gray-900 p-3 rounded text-xs overflow-x-auto mt-2">
+                      {JSON.stringify(output.data, null, 2)}
+                    </pre>
+                  </details>
                 </div>
               ))}
             </div>

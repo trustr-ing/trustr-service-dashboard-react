@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { getCurrentUser } from '@/lib/auth/session'
 
 export default async function DashboardLayout({
@@ -19,7 +20,11 @@ export default async function DashboardLayout({
           <div className="flex h-16 justify-between">
             <div className="flex">
               <div className="flex flex-shrink-0 items-center">
-                <h1 className="text-xl font-bold">Trustr Dashboard</h1>
+                <Link href="/dashboard">
+                  <h1 className="text-xl font-bold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                    Trustr Dashboard
+                  </h1>
+                </Link>
               </div>
             </div>
             <div className="flex items-center space-x-4">

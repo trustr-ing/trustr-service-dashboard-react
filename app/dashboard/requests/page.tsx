@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { format } from 'date-fns'
 
+type StatusFilter = 'all' | 'completed' | 'pending' | 'error'
+
 interface SavedRequest {
   id: number
   eventId: string
@@ -19,6 +21,7 @@ interface SavedRequest {
 export default function RequestsPage() {
   const [requests, setRequests] = useState<SavedRequest[]>([])
   const [loading, setLoading] = useState(true)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
   useEffect(() => {
     fetchRequests()
@@ -51,6 +54,21 @@ export default function RequestsPage() {
     )
   }
 
+  const filteredRequests = requests.filter(request => {
+    if (statusFilter === 'all') return true
+    if (statusFilter === 'completed') return request.status === 'completed'
+    if (statusFilter === 'pending') return request.status === 'pending' || request.status === 'processing'
+    if (statusFilter === 'error') return request.status === 'error'
+    return true
+  })
+
+  const statusCounts = {
+    all: requests.length,
+    completed: requests.filter(r => r.status === 'completed').length,
+    pending: requests.filter(r => r.status === 'pending' || r.status === 'processing').length,
+    error: requests.filter(r => r.status === 'error').length,
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -73,7 +91,58 @@ export default function RequestsPage() {
         </Link>
       </div>
 
-      {requests.length === 0 ? (
+      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            statusFilter === 'all'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+          }`}
+        >
+          All ({statusCounts.all})
+        </button>
+        <button
+          onClick={() => setStatusFilter('completed')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            statusFilter === 'completed'
+              ? 'border-green-500 text-green-600 dark:text-green-400'
+              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+          }`}
+        >
+          Completed ({statusCounts.completed})
+        </button>
+        <button
+          onClick={() => setStatusFilter('pending')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            statusFilter === 'pending'
+              ? 'border-yellow-500 text-yellow-600 dark:text-yellow-400'
+              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+          }`}
+        >
+          Pending ({statusCounts.pending})
+        </button>
+        <button
+          onClick={() => setStatusFilter('error')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            statusFilter === 'error'
+              ? 'border-red-500 text-red-600 dark:text-red-400'
+              : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+          }`}
+        >
+          Failed ({statusCounts.error})
+        </button>
+      </div>
+
+      {filteredRequests.length === 0 && requests.length > 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              No {statusFilter !== 'all' ? statusFilter : ''} requests found.
+            </p>
+          </CardContent>
+        </Card>
+      ) : requests.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-gray-600 dark:text-gray-400 mb-4">
@@ -86,7 +155,7 @@ export default function RequestsPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {requests.map((request) => {
+          {filteredRequests.map((request) => {
             const resultCount = request.resultEventIds ? JSON.parse(request.resultEventIds).length : 0
             const feedbackCount = request.feedbackEventIds ? JSON.parse(request.feedbackEventIds).length : 0
             

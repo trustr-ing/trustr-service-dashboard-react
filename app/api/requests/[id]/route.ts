@@ -76,3 +76,36 @@ export async function PATCH(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+
+    const { id } = await params
+
+    const [deleted] = await db
+      .delete(savedRequests)
+      .where(
+        and(
+          eq(savedRequests.id, parseInt(id)),
+          eq(savedRequests.userId, user.id)
+        )
+      )
+      .returning()
+
+    if (!deleted) {
+      return NextResponse.json({ error: 'Request not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Delete request error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

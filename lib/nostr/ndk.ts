@@ -1,6 +1,6 @@
 import NDK, { NDKEvent, NDKNip07Signer, NDKPrivateKeySigner } from '@nostr-dev-kit/ndk'
 
-const DEFAULT_RELAYS = process.env.NEXT_PUBLIC_DEFAULT_RELAYS?.split(',') || [
+const DEFAULT_RELAYS = [
   'wss://relay.primal.net',
   'wss://relay.damus.io',
 ]
@@ -9,8 +9,11 @@ let ndkInstance: NDK | null = null
 
 export function getNDK(): NDK {
   if (!ndkInstance) {
+    console.log('Initializing NDK with relays:', DEFAULT_RELAYS)
     ndkInstance = new NDK({
       explicitRelayUrls: DEFAULT_RELAYS,
+      enableOutboxModel: false,
+      autoConnectUserRelays: false,
     })
   }
   return ndkInstance
