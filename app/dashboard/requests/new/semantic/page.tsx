@@ -135,14 +135,28 @@ export default function SemanticRankingRequestPage() {
       await event.sign(signer)
       await event.publish()
 
-      await fetch('/api/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          eventId: event.id,
-          configData: formData,
-        }),
-      })
+      if (isUpdate && originalEventId) {
+        // Update existing request entry with new eventId
+        await fetch(`/api/requests/${originalEventId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            eventId: event.id,
+            configData: JSON.stringify(formData),
+            status: 'pending',
+          }),
+        })
+      } else {
+        // Create new request entry
+        await fetch('/api/requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            eventId: event.id,
+            configData: formData,
+          }),
+        })
+      }
 
       router.push(`/dashboard/requests/${event.id}`)
     } catch (err) {

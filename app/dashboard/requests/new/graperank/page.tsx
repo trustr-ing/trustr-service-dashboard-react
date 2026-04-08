@@ -183,14 +183,28 @@ export default function GrapeRankRequestPage() {
       await event.sign(signer)
       await event.publish()
 
-      await fetch('/api/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          eventId: event.id,
-          configData,
-        }),
-      })
+      if (isUpdate && originalEventId) {
+        // Update existing request entry with new eventId
+        await fetch(`/api/requests/${originalEventId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            eventId: event.id,
+            configData: JSON.stringify(configData),
+            status: 'pending',
+          }),
+        })
+      } else {
+        // Create new request entry
+        await fetch('/api/requests', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            eventId: event.id,
+            configData,
+          }),
+        })
+      }
 
       router.push(`/dashboard/requests/${event.id}`)
     } catch (err) {

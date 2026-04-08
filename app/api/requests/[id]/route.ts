@@ -55,22 +55,32 @@ export async function PATCH(
 
     const { id } = await params
     const body = await request.json()
-    const { status, resultEventIds, feedbackEventIds, completedAt } = body
+    const { status, eventId, configData, resultEventIds, feedbackEventIds, completedAt } = body
 
     const updateData: Record<string, unknown> = {}
     if (status) updateData.status = status
+    if (eventId) updateData.eventId = eventId
+    if (configData) updateData.configData = configData
     if (resultEventIds) updateData.resultEventIds = JSON.stringify(resultEventIds)
     if (feedbackEventIds) updateData.feedbackEventIds = JSON.stringify(feedbackEventIds)
     if (completedAt) updateData.completedAt = new Date(completedAt)
+
+    // Check if id is numeric (database id) or hex string (eventId)
+    const isNumeric = /^\d+$/.test(id)
 
     const [updated] = await db
       .update(savedRequests)
       .set(updateData)
       .where(
-        and(
-          eq(savedRequests.id, parseInt(id)),
-          eq(savedRequests.userId, user.id)
-        )
+        isNumeric
+          ? and(
+              eq(savedRequests.id, parseInt(id)),
+              eq(savedRequests.userId, user.id)
+            )
+          : and(
+              eq(savedRequests.eventId, id),
+              eq(savedRequests.userId, user.id)
+            )
       )
       .returning()
 
