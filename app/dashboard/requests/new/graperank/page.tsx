@@ -102,20 +102,17 @@ export default function GrapeRankRequestPage() {
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Type <span className="text-red-500">*</span>
+                  Type
                 </label>
-                <select
-                  required
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
-                >
-                  <option value="p">p - Pubkeys</option>
-                  <option value="e">e - Events</option>
-                  <option value="a">a - Addresses</option>
-                  <option value="t">t - Hashtags</option>
-                  <option value="r">r - Relays</option>
-                </select>
+                <input
+                  type="text"
+                  value="p"
+                  disabled
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 px-3 py-2 text-gray-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Fixed to &apos;p&apos; (Pubkeys) for this MVP
+                </p>
               </div>
 
               <div>

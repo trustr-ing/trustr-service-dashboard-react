@@ -6,9 +6,8 @@ interface Interpreter {
   type: string
   actorType?: string
   subjectType?: string
-  minrank?: number
-  attenuation?: number
-  rigor?: number
+  iterate?: boolean
+  params?: Record<string, number | string>
 }
 
 interface InterpreterBuilderProps {
@@ -49,6 +48,19 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
     const newInterpreters = [...interpreters]
     newInterpreters[index] = { ...newInterpreters[index], ...updates }
     onChange(newInterpreters)
+  }
+
+  const addParam = (index: number, key: string, value: string) => {
+    const interpreter = interpreters[index]
+    const params = { ...(interpreter.params || {}), [key]: value }
+    updateInterpreter(index, { params })
+  }
+
+  const removeParam = (index: number, key: string) => {
+    const interpreter = interpreters[index]
+    const params = { ...(interpreter.params || {}) }
+    delete params[key]
+    updateInterpreter(index, { params: Object.keys(params).length > 0 ? params : undefined })
   }
 
   return (
@@ -155,52 +167,96 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
                     </div>
                   </div>
 
-                  {showAdvanced && (
-                    <div className="grid grid-cols-3 gap-2 pt-2 border-t">
-                      <div>
-                        <label className="block text-xs font-medium mb-1">Min Rank</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={interpreter.minrank || ''}
-                          onChange={(e) => updateInterpreter(index, { 
-                            minrank: e.target.value ? parseFloat(e.target.value) : undefined 
-                          })}
-                          placeholder="Optional"
-                          disabled={disabled}
-                          className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1"
-                        />
+                  <div className="pt-2 border-t space-y-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={interpreter.iterate || false}
+                        onChange={(e) => updateInterpreter(index, { iterate: e.target.checked })}
+                        disabled={disabled}
+                        className="rounded"
+                      />
+                      <span className="text-xs font-medium">Iterate</span>
+                    </label>
+
+                    {showAdvanced && (
+                      <div className="space-y-2">
+                        <label className="block text-xs font-medium">Parameters (Optional)</label>
+                        <div className="space-y-2">
+                          {Object.entries(interpreter.params || {}).map(([key, value]) => (
+                            <div key={key} className="flex gap-2 items-center">
+                              <input
+                                type="text"
+                                value={key}
+                                disabled
+                                className="flex-1 text-xs rounded-md border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 px-2 py-1"
+                              />
+                              <input
+                                type="text"
+                                value={value}
+                                onChange={(e) => addParam(index, key, e.target.value)}
+                                disabled={disabled}
+                                className="flex-1 text-xs rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeParam(index, key)}
+                                disabled={disabled}
+                                className="h-7 px-2 text-red-600 hover:text-red-700"
+                              >
+                                ×
+                              </Button>
+                            </div>
+                          ))}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Key (e.g., value)"
+                              id={`param-key-${index}`}
+                              className="flex-1 text-xs rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1"
+                              disabled={disabled}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  const keyInput = e.currentTarget
+                                  const valueInput = document.getElementById(`param-value-${index}`) as HTMLInputElement
+                                  if (keyInput.value && valueInput?.value) {
+                                    addParam(index, keyInput.value, valueInput.value)
+                                    keyInput.value = ''
+                                    valueInput.value = ''
+                                  }
+                                }
+                              }}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Value (e.g., 1.0)"
+                              id={`param-value-${index}`}
+                              className="flex-1 text-xs rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1"
+                              disabled={disabled}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  const valueInput = e.currentTarget
+                                  const keyInput = document.getElementById(`param-key-${index}`) as HTMLInputElement
+                                  if (keyInput?.value && valueInput.value) {
+                                    addParam(index, keyInput.value, valueInput.value)
+                                    keyInput.value = ''
+                                    valueInput.value = ''
+                                  }
+                                }
+                              }}
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            Press Enter to add parameter
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium mb-1">Attenuation</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={interpreter.attenuation || ''}
-                          onChange={(e) => updateInterpreter(index, { 
-                            attenuation: e.target.value ? parseFloat(e.target.value) : undefined 
-                          })}
-                          placeholder="Optional"
-                          disabled={disabled}
-                          className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium mb-1">Rigor</label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={interpreter.rigor || ''}
-                          onChange={(e) => updateInterpreter(index, { 
-                            rigor: e.target.value ? parseFloat(e.target.value) : undefined 
-                          })}
-                          placeholder="Optional"
-                          disabled={disabled}
-                          className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1"
-                        />
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )
