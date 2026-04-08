@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { POVSelector } from '@/components/POVSelector'
 import { getNDK, getNip07Signer } from '@/lib/nostr/ndk'
 import { NDKEvent } from '@nostr-dev-kit/ndk'
 
@@ -100,22 +101,11 @@ export default function SemanticRankingRequestPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Point of View (POV) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="naddr1..."
-                  value={formData.pov}
-                  onChange={(e) => setFormData({ ...formData, pov: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  naddr reference to previous ranking results
-                </p>
-              </div>
+              <POVSelector
+                value={formData.pov}
+                onChange={(value) => setFormData({ ...formData, pov: value })}
+                disabled={loading}
+              />
 
               <div>
                 <label className="block text-sm font-medium mb-1">

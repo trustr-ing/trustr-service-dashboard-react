@@ -4,10 +4,21 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { POVSelector } from '@/components/POVSelector'
+import { InterpreterBuilder } from '@/components/InterpreterBuilder'
 import { getNDK, getNip07Signer } from '@/lib/nostr/ndk'
 import { buildServiceRequestEvent, type ServiceRequestConfig } from '@/lib/nostr/events'
 
 const GRAPERANK_PUBKEY = '9331ff6ecb651162f64ff1a54f8b69f82d72cb93b979bf4635b59b989ec543ae'
+
+interface Interpreter {
+  type: string
+  actorType?: string
+  subjectType?: string
+  minrank?: number
+  attenuation?: number
+  rigor?: number
+}
 
 export default function GrapeRankRequestPage() {
   const router = useRouter()
@@ -19,6 +30,7 @@ export default function GrapeRankRequestPage() {
     rigor: '0.5',
     precision: '0.00001',
   })
+  const [interpreters, setInterpreters] = useState<Interpreter[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,7 +48,13 @@ export default function GrapeRankRequestPage() {
       const ndk = getNDK()
       ndk.signer = signer
 
-      const event = buildServiceRequestEvent('trustr_graperank', GRAPERANK_PUBKEY, formData as ServiceRequestConfig)
+      // Merge form data with interpreters as JSON
+      const configData = {
+        ...formData,
+        ...(interpreters.length > 0 ? { interpreters: JSON.stringify(interpreters) } : {})
+      }
+
+      const event = buildServiceRequestEvent('trustr_graperank', GRAPERANK_PUBKEY, configData as ServiceRequestConfig)
       
       await event.sign(signer)
       await event.publish()
@@ -46,7 +64,7 @@ export default function GrapeRankRequestPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           eventId: event.id,
-          configData: formData,
+          configData,
         }),
       })
 
@@ -76,22 +94,11 @@ export default function GrapeRankRequestPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Point of View (POV) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="npub1... or naddr1..."
-                  value={formData.pov}
-                  onChange={(e) => setFormData({ ...formData, pov: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Pubkey or naddr reference to previous results
-                </p>
-              </div>
+              <POVSelector
+                value={formData.pov}
+                onChange={(value) => setFormData({ ...formData, pov: value })}
+                disabled={loading}
+              />
 
               <div>
                 <label className="block text-sm font-medium mb-1">
@@ -180,21 +187,11 @@ export default function GrapeRankRequestPage() {
                 </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Interpreters (JSON)
-                </label>
-                <textarea
-                  placeholder='[{"id":"nostr-3","params":{"value":1,"confidence":0.5}}]'
-                  value={formData.interpreters || ''}
-                  onChange={(e) => setFormData({ ...formData, interpreters: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 font-mono text-sm"
-                  rows={5}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Optional: Custom interpreter configuration. Leave empty for defaults.
-                </p>
-              </div>
+              <InterpreterBuilder
+                interpreters={interpreters}
+                onChange={setInterpreters}
+                disabled={loading}
+              />
             </div>
 
             {error && (

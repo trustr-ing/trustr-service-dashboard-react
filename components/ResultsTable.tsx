@@ -21,6 +21,9 @@ export function ResultsTable({ results, title, description, showProfiles = true 
   const [copied, setCopied] = useState<string | null>(null)
   const [profiles, setProfiles] = useState<Map<string, NostrProfile>>(new Map())
   const [loadingProfiles, setLoadingProfiles] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const resultsPerPage = 20
 
   useEffect(() => {
     if (!showProfiles || results.length === 0) return
@@ -51,6 +54,40 @@ export function ResultsTable({ results, title, description, showProfiles = true 
     return score.toFixed(6)
   }
 
+  const exportToCSV = () => {
+    const headers = ['Rank', 'Pubkey', 'Score', 'Confidence']
+    const rows = results.map(r => [
+      r.rank,
+      r.pubkey,
+      r.score,
+      r.confidence || ''
+    ])
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `results-${Date.now()}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportToJSON = () => {
+    const jsonContent = JSON.stringify(results, null, 2)
+    const blob = new Blob([jsonContent], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `results-${Date.now()}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const getScoreColor = (score: number): string => {
     if (score >= 0.9) return 'bg-green-500'
     if (score >= 0.7) return 'bg-blue-500'
@@ -61,6 +98,32 @@ export function ResultsTable({ results, title, description, showProfiles = true 
   const getScoreWidth = (score: number): string => {
     return `${Math.max(score * 100, 5)}%`
   }
+
+  // Filter results based on search query
+  const filteredResults = results.filter(result => {
+    if (!searchQuery) return true
+    
+    const query = searchQuery.toLowerCase()
+    const profile = profiles.get(result.pubkey)
+    const displayName = profile ? getDisplayName(profile).toLowerCase() : ''
+    
+    return (
+      result.pubkey.toLowerCase().includes(query) ||
+      displayName.includes(query) ||
+      result.rank.toString().includes(query)
+    )
+  })
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredResults.length / resultsPerPage)
+  const startIndex = (currentPage - 1) * resultsPerPage
+  const endIndex = startIndex + resultsPerPage
+  const paginatedResults = filteredResults.slice(startIndex, endIndex)
+
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   if (results.length === 0) {
     return (
@@ -81,12 +144,52 @@ export function ResultsTable({ results, title, description, showProfiles = true 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{title || `Results (${results.length})`}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <CardTitle>{title || `Results (${results.length})`}</CardTitle>
+            {description && <CardDescription>{description}</CardDescription>}
+          </div>
+          {results.length > 0 && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportToCSV}
+                className="text-xs"
+              >
+                Export CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportToJSON}
+                className="text-xs"
+              >
+                Export JSON
+              </Button>
+            </div>
+          )}
+        </div>
+        {results.length > 0 && (
+          <div className="mt-4">
+            <input
+              type="text"
+              placeholder="Search by pubkey, name, or rank..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+            />
+            {searchQuery && (
+              <p className="text-xs text-gray-500 mt-1">
+                Showing {filteredResults.length} of {results.length} results
+              </p>
+            )}
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {results.map((result, idx) => {
+          {paginatedResults.map((result, idx) => {
             const profile = profiles.get(result.pubkey)
             const displayName = profile ? getDisplayName(profile) : `${result.pubkey.slice(0, 8)}...`
             
@@ -163,6 +266,32 @@ export function ResultsTable({ results, title, description, showProfiles = true 
             )
           })}
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4 mt-4 border-t">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Page {currentPage} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
