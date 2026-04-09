@@ -30,7 +30,7 @@ export function useSubscription(userId?: number) {
           setSubscription({
             id: sub.id,
             pubkey: sub.pubkey,
-            privkey: sub.privkey,
+            name: sub.name,
             isActive: sub.isActive,
           })
         }
