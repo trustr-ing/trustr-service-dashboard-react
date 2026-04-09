@@ -128,6 +128,8 @@ export interface ParsedOutputEvent {
   data: Record<string, unknown>
   tags: string[][]
   timestamp: number
+  pubkey: string
+  kind: number
 }
 
 export function parseOutputEvent(event: NDKEvent): ParsedOutputEvent {
