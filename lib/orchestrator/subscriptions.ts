@@ -4,7 +4,6 @@ export interface OrchestratorSubscription {
   id: string
   userPubkey: string
   subscriptionPubkey: string
-  subscriptionPrivkey: string
   status: 'active' | 'suspended' | 'revoked'
   allowedServices: string[] | null
   createdAt: number

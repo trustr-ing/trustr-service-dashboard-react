@@ -51,12 +51,11 @@ export async function POST(request: NextRequest) {
         const existingSub = await getActiveSubscription(pubkey)
         
         if (existingSub) {
-          // Store existing subscription
+          // Store existing subscription (pubkey only - privkey stays on orchestrator)
           const [newSub] = await db.insert(subscriptions).values({
             userId: user.id,
             name: 'Default Subscription',
             pubkey: existingSub.subscriptionPubkey,
-            privkey: existingSub.subscriptionPrivkey,
             isActive: existingSub.status === 'active',
           }).returning()
           subscription = newSub
@@ -64,12 +63,11 @@ export async function POST(request: NextRequest) {
           // Create new orchestrator subscription
           const orchestratorSub = await createOrchestratorSubscription(pubkey)
           
-          // Store in local database
+          // Store in local database (pubkey only - privkey stays on orchestrator)
           const [newSub] = await db.insert(subscriptions).values({
             userId: user.id,
             name: 'Default Subscription',
             pubkey: orchestratorSub.subscriptionPubkey,
-            privkey: orchestratorSub.subscriptionPrivkey,
             isActive: true,
           }).returning()
           subscription = newSub

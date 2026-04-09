@@ -70,7 +70,6 @@ export const subscriptions = sqliteTable('subscriptions', {
     .references(() => users.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   pubkey: text('pubkey').notNull().unique(),
-  privkey: text('privkey').notNull(),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()

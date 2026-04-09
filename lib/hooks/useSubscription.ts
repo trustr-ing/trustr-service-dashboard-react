@@ -6,7 +6,6 @@ import { eq } from 'drizzle-orm'
 export interface UserSubscription {
   id: number
   pubkey: string
-  privkey: string
   name: string
   isActive: boolean
 }
@@ -32,7 +31,6 @@ export function useSubscription(userId?: number) {
             id: sub.id,
             pubkey: sub.pubkey,
             privkey: sub.privkey,
-            name: sub.name,
             isActive: sub.isActive,
           })
         }

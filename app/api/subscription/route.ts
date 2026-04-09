@@ -22,7 +22,6 @@ export async function GET() {
     return NextResponse.json({
       id: subscription.id,
       pubkey: subscription.pubkey,
-      privkey: subscription.privkey,
       name: subscription.name,
       isActive: subscription.isActive,
     })
