@@ -20,7 +20,7 @@ export default function SemanticRankingRequestPage() {
     model: 'fused',
     context: '',
     lambda: '1.0',
-    minrank: '0',
+    minrank: '0.0001',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -297,18 +297,17 @@ export default function SemanticRankingRequestPage() {
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Min Rank: {formData.minrank}
+                  Min Rank
                 </label>
                 <input
-                  type="range"
-                  min="0"
-                  max="100"
+                  type="text"
                   value={formData.minrank}
                   onChange={(e) => setFormData({ ...formData, minrank: e.target.value })}
-                  className="w-full"
+                  placeholder="0.0001"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:border-gray-600"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Minimum rank threshold (0-100)
+                  Exclude results below this rank (default 0.0001 excludes rank == 0)
                 </p>
               </div>
 

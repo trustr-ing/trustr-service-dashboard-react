@@ -30,7 +30,7 @@ export default function GrapeRankRequestPage() {
     title: '',
     pov: '',
     type: 'p',
-    minrank: '0',
+    minrank: '0.0001',
     attenuation: '0.5',
     rigor: '0.5',
     precision: '0.00001',
@@ -80,7 +80,7 @@ export default function GrapeRankRequestPage() {
         title: params.get('title') || '',
         pov: params.get('pov') || '',
         type: params.get('type') || 'p',
-        minrank: params.get('minrank') || '0',
+        minrank: params.get('minrank') || '0.0001',
         attenuation: params.get('attenuation') || '0.5',
         rigor: params.get('rigor') || '0.5',
         precision: params.get('precision') || '0.00001',
@@ -292,18 +292,17 @@ export default function GrapeRankRequestPage() {
 
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Min Rank: {formData.minrank}
+                  Min Rank
                 </label>
                 <input
-                  type="range"
-                  min="0"
-                  max="100"
+                  type="text"
                   value={formData.minrank}
                   onChange={(e) => setFormData({ ...formData, minrank: e.target.value })}
-                  className="w-full"
+                  placeholder="0.0001"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:border-gray-600"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Minimum rank threshold (0-100)
+                  Exclude results below this rank (default 0.0001 excludes rank == 0)
                 </p>
               </div>
 
