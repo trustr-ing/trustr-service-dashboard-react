@@ -297,23 +297,35 @@ export function ResultsTable({ results, title, description, showProfiles = true 
   )
 }
 
-export function parseOutputEventResults(event: { tags?: string[][] }): RankedResult[] {
+export function parseOutputEventResults(event: { tags: string[][] }): RankedResult[] {
   const tags = event.tags || []
   const pTags = tags.filter((t: string[]) => t[0] === 'p' && t[1])
   
   const results: RankedResult[] = []
+  let currentRank = 1
   
-  for (let i = 0; i < pTags.length; i++) {
-    const tag = pTags[i]
+  for (const tag of pTags) {
     const pubkey = tag[1]
-    const score = tag[2] ? parseFloat(tag[2]) : 0
+    
+    // Skip POV pubkey (first p-tag with only 2 elements)
+    if (tag.length < 3) {
+      continue
+    }
+    
+    // GrapeRank format: ["p", pubkey, rank, confidence]
+    // tag[2] is rank (GrapeRank score 0-1)
+    // tag[3] is confidence (0-1)
+    const rankValue = tag[2] ? parseFloat(tag[2]) : 0
     const confidence = tag[3] ? parseFloat(tag[3]) : undefined
+    
+    // Score is the confidence value (0-1 range)
+    const score = confidence !== undefined ? confidence : 0
     
     results.push({
       pubkey,
       score,
       confidence,
-      rank: i + 1
+      rank: currentRank++
     })
   }
   

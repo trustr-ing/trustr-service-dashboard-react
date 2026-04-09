@@ -26,7 +26,7 @@ export function buildServiceRequestEvent(
   event.kind = 37572
   event.content = ''
   
-  const requestDTag = dTag || `request-${Date.now()}`
+  const requestDTag = dTag || `${serviceId}-${Date.now()}`
   
   event.tags = [
     ['d', requestDTag],
@@ -126,6 +126,7 @@ export interface ParsedOutputEvent {
   requestEventId: string | null
   content: string
   data: Record<string, unknown>
+  tags: string[][]
   timestamp: number
 }
 
@@ -142,6 +143,7 @@ export function parseOutputEvent(event: NDKEvent): ParsedOutputEvent {
     requestEventId: getRequestEventId(event),
     content: event.content,
     data,
+    tags: event.tags,
     timestamp: event.created_at || 0,
   }
 }
