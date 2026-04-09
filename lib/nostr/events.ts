@@ -145,5 +145,7 @@ export function parseOutputEvent(event: NDKEvent): ParsedOutputEvent {
     data,
     tags: event.tags,
     timestamp: event.created_at || 0,
+    pubkey: event.pubkey,
+    kind: event.kind || 37573,
   }
 }

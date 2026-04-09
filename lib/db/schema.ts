@@ -61,6 +61,7 @@ export const savedRequests = sqliteTable('saved_requests', {
   completedAt: integer('completed_at', { mode: 'timestamp' }),
   resultEventIds: text('result_event_ids').notNull().default('[]'),
   feedbackEventIds: text('feedback_event_ids').notNull().default('[]'),
+  firstOutputNaddr: text('first_output_naddr'),
 })
 
 export const subscriptions = sqliteTable('subscriptions', {

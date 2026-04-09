@@ -9,6 +9,7 @@ import { useRequestMonitor } from '@/lib/hooks/useRequestMonitor'
 import { ResultsTable, parseOutputEventResults } from '@/components/ResultsTable'
 import { deleteEvent } from '@/lib/nostr/deletion'
 import Link from 'next/link'
+import { nip19 } from 'nostr-tools'
 
 interface SavedRequest {
   id: number
@@ -62,6 +63,25 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
   const updateRequestStatus = useCallback(async (status: string) => {
     if (!requestId) return
     try {
+      // Generate naddr for first output event
+      let firstOutputNaddr: string | null = null
+      if (outputEvents.length > 0) {
+        const firstOutput = outputEvents[0]
+        const dTag = firstOutput.tags.find((t) => t[0] === 'd')?.[1]
+        
+        if (dTag && firstOutput.pubkey) {
+          try {
+            firstOutputNaddr = nip19.naddrEncode({
+              kind: firstOutput.kind || 37573,
+              pubkey: firstOutput.pubkey,
+              identifier: dTag,
+            })
+          } catch (err) {
+            console.error('Failed to generate naddr:', err)
+          }
+        }
+      }
+
       const response = await fetch(`/api/requests/${requestId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -70,6 +90,7 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
           resultEventIds: outputEvents.map((e) => e.id),
           feedbackEventIds: feedbackEvents.map((e) => e.id),
           completedAt: new Date().toISOString(),
+          firstOutputNaddr,
         }),
       })
 
