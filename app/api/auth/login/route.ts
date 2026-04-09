@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { users } from '@/lib/db/schema'
+import { users, subscriptions } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { hexToNpub } from '@/lib/nostr/keys'
 import { createSession } from '@/lib/auth/session'
 import { verifyEvent } from 'nostr-tools'
+import { createOrchestratorSubscription, getActiveSubscription } from '@/lib/orchestrator/subscriptions'
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +38,46 @@ export async function POST(request: NextRequest) {
       await db.update(users)
         .set({ lastLoginAt: new Date() })
         .where(eq(users.id, user.id))
+    }
+
+    // Auto-register orchestrator subscription if not exists
+    let subscription = await db.query.subscriptions.findFirst({
+      where: eq(subscriptions.userId, user.id),
+    })
+
+    if (!subscription) {
+      try {
+        // Check if orchestrator subscription already exists
+        const existingSub = await getActiveSubscription(pubkey)
+        
+        if (existingSub) {
+          // Store existing subscription
+          const [newSub] = await db.insert(subscriptions).values({
+            userId: user.id,
+            name: 'Default Subscription',
+            pubkey: existingSub.subscriptionPubkey,
+            privkey: existingSub.subscriptionPrivkey,
+            isActive: existingSub.status === 'active',
+          }).returning()
+          subscription = newSub
+        } else {
+          // Create new orchestrator subscription
+          const orchestratorSub = await createOrchestratorSubscription(pubkey)
+          
+          // Store in local database
+          const [newSub] = await db.insert(subscriptions).values({
+            userId: user.id,
+            name: 'Default Subscription',
+            pubkey: orchestratorSub.subscriptionPubkey,
+            privkey: orchestratorSub.subscriptionPrivkey,
+            isActive: true,
+          }).returning()
+          subscription = newSub
+        }
+      } catch (error) {
+        console.error('Failed to create subscription:', error)
+        // Continue login even if subscription creation fails
+      }
     }
 
     await createSession(pubkey)

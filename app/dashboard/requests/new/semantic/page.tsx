@@ -7,11 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { POVInput } from '@/components/POVInput'
 import { getNDK, getNip07Signer } from '@/lib/nostr/ndk'
 import { NDKEvent } from '@nostr-dev-kit/ndk'
-
-const SEMANTIC_PUBKEY = '68bb72c016397a902d087a7ad594e9e10c070bc3158d0af77d708d006ff6a2f4'
+import { useSubscriptionPubkey } from '@/lib/hooks/useSubscriptionPubkey'
 
 export default function SemanticRankingRequestPage() {
   const router = useRouter()
+  const { subscriptionPubkey } = useSubscriptionPubkey()
   const [userPubkey, setUserPubkey] = useState<string>('')
   const [formData, setFormData] = useState<Record<string, string>>({
     title: '',
@@ -107,9 +107,13 @@ export default function SemanticRankingRequestPage() {
       
       const requestDTag = dTag || `request-${Date.now()}`
       
+      if (!subscriptionPubkey) {
+        throw new Error('No subscription found. Please refresh and try again.')
+      }
+
       event.tags = [
         ['d', requestDTag],
-        ['p', SEMANTIC_PUBKEY],
+        ['p', subscriptionPubkey],
         ['k', '37573'],
       ]
       

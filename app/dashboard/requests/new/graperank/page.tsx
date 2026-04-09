@@ -8,8 +8,7 @@ import { POVInput } from '@/components/POVInput'
 import { InterpreterBuilder } from '@/components/InterpreterBuilder'
 import { getNDK, getNip07Signer } from '@/lib/nostr/ndk'
 import { buildServiceRequestEvent, type ServiceRequestConfig } from '@/lib/nostr/events'
-
-const GRAPERANK_PUBKEY = '9331ff6ecb651162f64ff1a54f8b69f82d72cb93b979bf4635b59b989ec543ae'
+import { useSubscriptionPubkey } from '@/lib/hooks/useSubscriptionPubkey'
 
 interface Interpreter {
   type: string
@@ -25,6 +24,7 @@ interface Interpreter {
 
 export default function GrapeRankRequestPage() {
   const router = useRouter()
+  const { subscriptionPubkey, loading: subscriptionLoading, error: subscriptionError } = useSubscriptionPubkey()
   const [userPubkey, setUserPubkey] = useState<string>('')
   const [formData, setFormData] = useState<Record<string, string>>({
     title: '',
@@ -182,7 +182,11 @@ export default function GrapeRankRequestPage() {
         ...(grapeRankInterpreters.length > 0 ? { interpreters: JSON.stringify(grapeRankInterpreters) } : {})
       }
 
-      const event = buildServiceRequestEvent('trustr_graperank', GRAPERANK_PUBKEY, configData as ServiceRequestConfig, 37573, dTag || undefined)
+      if (!subscriptionPubkey) {
+        throw new Error('No subscription found. Please refresh and try again.')
+      }
+
+      const event = buildServiceRequestEvent('trustr_graperank', subscriptionPubkey, configData as ServiceRequestConfig, 37573, dTag || undefined)
       
       await event.sign(signer)
       await event.publish()
