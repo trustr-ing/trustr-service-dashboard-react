@@ -1,16 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { format } from 'date-fns'
+import { useRequestSync } from '@/lib/hooks/useRequestSync'
+import { getNip07Signer } from '@/lib/nostr/ndk'
 
 type StatusFilter = 'all' | 'completed' | 'pending' | 'error'
 
 interface SavedRequest {
   id: number
   eventId: string
+  configData: string
   status: string
   publishedAt: string
   completedAt: string | null
@@ -22,12 +25,10 @@ export default function RequestsPage() {
   const [requests, setRequests] = useState<SavedRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [userPubkey, setUserPubkey] = useState<string | null>(null)
+  const { syncing, lastSyncResult, syncFromRelays } = useRequestSync(userPubkey)
 
-  useEffect(() => {
-    fetchRequests()
-  }, [])
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       const response = await fetch('/api/requests')
       const data = await response.json()
@@ -37,7 +38,38 @@ export default function RequestsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    async function initAndSync() {
+      // Get user pubkey for relay sync
+      try {
+        const signer = await getNip07Signer()
+        if (signer) {
+          const user = await signer.user()
+          if (user.pubkey) {
+            setUserPubkey(user.pubkey)
+          }
+        }
+      } catch {
+        // NIP-07 not available, skip relay sync
+      }
+      // Always fetch local DB requests first
+      await fetchRequests()
+    }
+    initAndSync()
+  }, [fetchRequests])
+
+  // Trigger relay sync once we have the user pubkey
+  useEffect(() => {
+    if (!userPubkey) return
+    syncFromRelays().then(result => {
+      if (result && (result.imported > 0 || result.updated > 0)) {
+        // Re-fetch local DB to pick up synced data
+        fetchRequests()
+      }
+    })
+  }, [userPubkey, syncFromRelays, fetchRequests])
 
   const getStatusBadge = (status: string) => {
     const colors = {
@@ -86,9 +118,19 @@ export default function RequestsPage() {
             View and monitor your service requests
           </p>
         </div>
-        <Link href="/dashboard/requests/new">
-          <Button>New Request</Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          {syncing && (
+            <span className="text-xs text-gray-400 animate-pulse">Syncing from relays...</span>
+          )}
+          {!syncing && lastSyncResult && (lastSyncResult.imported > 0 || lastSyncResult.updated > 0) && (
+            <span className="text-xs text-green-500">
+              Synced {lastSyncResult.imported > 0 ? `${lastSyncResult.imported} new` : ''}{lastSyncResult.imported > 0 && lastSyncResult.updated > 0 ? ', ' : ''}{lastSyncResult.updated > 0 ? `${lastSyncResult.updated} updated` : ''}
+            </span>
+          )}
+          <Link href="/dashboard/requests/new">
+            <Button>New Request</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
@@ -158,6 +200,11 @@ export default function RequestsPage() {
           {filteredRequests.map((request) => {
             const resultCount = request.resultEventIds ? JSON.parse(request.resultEventIds).length : 0
             const feedbackCount = request.feedbackEventIds ? JSON.parse(request.feedbackEventIds).length : 0
+            let requestTitle = `Request ${request.eventId.slice(0, 8)}...`
+            try {
+              const config = JSON.parse(request.configData || '{}')
+              if (config.title) requestTitle = config.title
+            } catch { /* use default */ }
             
             return (
               <Link key={request.id} href={`/dashboard/requests/${request.id}`}>
@@ -166,7 +213,7 @@ export default function RequestsPage() {
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
                         <CardTitle className="text-lg">
-                          Request {request.eventId.slice(0, 8)}...
+                          {requestTitle}
                         </CardTitle>
                         <CardDescription>
                           Published {format(new Date(request.publishedAt), 'PPp')}
