@@ -8,6 +8,13 @@
       "when": 1775580272152,
       "tag": "0000_abnormal_killer_shrike",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1776092623207,
+      "tag": "0001_charming_chronomancer",
+      "breakpoints": true
     }
   ]
 }
