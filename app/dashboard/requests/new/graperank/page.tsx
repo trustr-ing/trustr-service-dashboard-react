@@ -8,6 +8,7 @@ import { POVInput } from '@/components/POVInput'
 import { InterpreterBuilder } from '@/components/InterpreterBuilder'
 import { getNDK, getNip07Signer } from '@/lib/nostr/ndk'
 import { buildServiceRequestEvent, type ServiceRequestConfig } from '@/lib/nostr/events'
+import { fetchServicePubkey } from '@/lib/nostr/services'
 import { useServiceAnnouncements } from '@/lib/hooks/useServiceAnnouncements'
 
 interface Interpreter {
@@ -186,11 +187,24 @@ export default function GrapeRankRequestPage() {
         ...(grapeRankInterpreters.length > 0 ? { interpreters: JSON.stringify(grapeRankInterpreters) } : {})
       }
 
-      if (!servicePubkey) {
+      const resolvedServicePubkey =
+        servicePubkey || (await fetchServicePubkey('trustr_graperank'))
+
+      if (!resolvedServicePubkey) {
         throw new Error('GrapeRank service not available. Please refresh and try again.')
       }
 
-      const event = buildServiceRequestEvent('trustr_graperank', servicePubkey, configData as ServiceRequestConfig, 37573, dTag || undefined)
+      if (!servicePubkey) {
+        setServicePubkey(resolvedServicePubkey)
+      }
+
+      const event = buildServiceRequestEvent(
+        'trustr_graperank',
+        resolvedServicePubkey,
+        configData as ServiceRequestConfig,
+        37573,
+        dTag || undefined,
+      )
       
       await event.sign(signer)
       await event.publish()

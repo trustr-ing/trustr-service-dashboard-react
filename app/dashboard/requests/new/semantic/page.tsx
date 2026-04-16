@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { POVInput } from '@/components/POVInput'
 import { getNDK, getNip07Signer } from '@/lib/nostr/ndk'
+import { fetchServicePubkey } from '@/lib/nostr/services'
 import { NDKEvent } from '@nostr-dev-kit/ndk'
 import { useServiceAnnouncements } from '@/lib/hooks/useServiceAnnouncements'
 
@@ -114,14 +115,21 @@ export default function SemanticRankingRequestPage() {
       event.content = ''
       
       const requestDTag = dTag || `request-${Date.now()}`
-      
-      if (!servicePubkey) {
+
+      const resolvedServicePubkey =
+        servicePubkey || (await fetchServicePubkey('trustr_semantic_ranking'))
+
+      if (!resolvedServicePubkey) {
         throw new Error('Semantic ranking service not available. Please refresh and try again.')
+      }
+
+      if (!servicePubkey) {
+        setServicePubkey(resolvedServicePubkey)
       }
 
       event.tags = [
         ['d', requestDTag],
-        ['p', servicePubkey],
+        ['p', resolvedServicePubkey],
         ['k', '37573'],
       ]
       
