@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { nip19 } from 'nostr-tools'
 
 export interface POVOption {
   value: string // naddr or hex pubkey
@@ -24,39 +23,19 @@ export function usePastPOVs() {
         const requests = data.requests || []
 
         const options: POVOption[] = []
-        
-        // Get completed requests with output events
+
+        // Get completed requests with first output naddr pointers
         requests
-          .filter((r: { status: string; resultEventIds: string }) => r.status === 'completed')
-          .forEach((r: { eventId: string; resultEventIds: string; publishedAt: string; configData: string }) => {
+          .filter((r: { status: string; firstOutputNaddr: string | null }) =>
+            r.status === 'completed' && Boolean(r.firstOutputNaddr)
+          )
+          .forEach((r: { firstOutputNaddr: string; publishedAt: string }) => {
             try {
-              const resultIds = JSON.parse(r.resultEventIds || '[]')
-              const config = JSON.parse(r.configData)
-              
-              // For each output event, create an naddr reference
-              resultIds.forEach((eventId: string) => {
-                try {
-                  // Get service pubkey from config
-                  const servicePubkey = config.servicePubkey || config.service_pubkey
-                  
-                  if (servicePubkey && eventId) {
-                    // Create naddr for the output event (kind 37573)
-                    const naddr = nip19.naddrEncode({
-                      kind: 37573,
-                      pubkey: servicePubkey,
-                      identifier: eventId
-                    })
-                    
-                    options.push({
-                      value: naddr,
-                      label: `${naddr.slice(0, 16)}... (${new Date(r.publishedAt).toLocaleDateString()})`,
-                      lastUsed: r.publishedAt,
-                      isOutput: true
-                    })
-                  }
-                } catch (err) {
-                  console.warn('Failed to create naddr:', err)
-                }
+              options.push({
+                value: r.firstOutputNaddr,
+                label: `${r.firstOutputNaddr.slice(0, 16)}... (${new Date(r.publishedAt).toLocaleDateString()})`,
+                lastUsed: r.publishedAt,
+                isOutput: true,
               })
             } catch (err) {
               console.warn('Failed to parse request:', err)

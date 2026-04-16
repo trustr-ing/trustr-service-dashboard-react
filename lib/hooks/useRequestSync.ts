@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { NDKEvent, NDKFilter } from '@nostr-dev-kit/ndk'
 import { getNDK } from '@/lib/nostr/ndk'
-import { nip19 } from 'nostr-tools'
+import { buildOutputEventNaddrFromNdkEvent } from '@/lib/nostr/naddr'
 
 interface SyncResult {
   imported: number
@@ -97,19 +97,7 @@ export function useRequestSync(userPubkey: string | null) {
         // Generate naddr for first output event if available
         let firstOutputNaddr: string | null = null
         if (outputs.length > 0) {
-          const firstOutput = outputs[0]
-          const dTag = firstOutput.tags.find(t => t[0] === 'd')?.[1]
-          if (dTag && firstOutput.pubkey) {
-            try {
-              firstOutputNaddr = nip19.naddrEncode({
-                kind: firstOutput.kind || 37573,
-                pubkey: firstOutput.pubkey,
-                identifier: dTag,
-              })
-            } catch {
-              // naddr encoding failed, skip
-            }
-          }
+          firstOutputNaddr = buildOutputEventNaddrFromNdkEvent(outputs[0])
         }
 
         return {

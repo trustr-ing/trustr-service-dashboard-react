@@ -7,12 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { POVInput } from '@/components/POVInput'
 import { getNDK, getNip07Signer } from '@/lib/nostr/ndk'
 import { NDKEvent } from '@nostr-dev-kit/ndk'
-import { useSubscriptionPubkey } from '@/lib/hooks/useSubscriptionPubkey'
+import { useServiceAnnouncements } from '@/lib/hooks/useServiceAnnouncements'
 
 export default function SemanticRankingRequestPage() {
   const router = useRouter()
-  const { subscriptionPubkey } = useSubscriptionPubkey()
+  const { announcements } = useServiceAnnouncements()
   const [userPubkey, setUserPubkey] = useState<string>('')
+  const [servicePubkey, setServicePubkey] = useState<string | null>(null)
   const [formData, setFormData] = useState<Record<string, string>>({
     title: '',
     pov: '',
@@ -47,6 +48,13 @@ export default function SemanticRankingRequestPage() {
     }
     fetchUserPubkey()
   }, [isUpdate])
+
+  useEffect(() => {
+    const semanticAnnouncement = announcements.find(a => a.serviceId === 'trustr_semantic_ranking')
+    if (semanticAnnouncement) {
+      setServicePubkey(semanticAnnouncement.pubkey)
+    }
+  }, [announcements])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -107,13 +115,13 @@ export default function SemanticRankingRequestPage() {
       
       const requestDTag = dTag || `request-${Date.now()}`
       
-      if (!subscriptionPubkey) {
-        throw new Error('No subscription found. Please refresh and try again.')
+      if (!servicePubkey) {
+        throw new Error('Semantic ranking service not available. Please refresh and try again.')
       }
 
       event.tags = [
         ['d', requestDTag],
-        ['p', subscriptionPubkey],
+        ['p', servicePubkey],
         ['k', '37573'],
       ]
       

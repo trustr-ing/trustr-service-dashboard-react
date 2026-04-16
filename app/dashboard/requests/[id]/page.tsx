@@ -8,8 +8,8 @@ import { format } from 'date-fns'
 import { useRequestMonitor } from '@/lib/hooks/useRequestMonitor'
 import { ResultsTable, parseOutputEventResults } from '@/components/ResultsTable'
 import { deleteEvent } from '@/lib/nostr/deletion'
+import { buildOutputEventNaddr } from '@/lib/nostr/naddr'
 import Link from 'next/link'
-import { nip19 } from 'nostr-tools'
 
 interface SavedRequest {
   id: number
@@ -34,51 +34,15 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
     request?.eventId || null
   )
 
-  const fetchRequest = useCallback(async () => {
-    if (!requestId) return
-    try {
-      const response = await fetch(`/api/requests/${requestId}`)
-      if (!response.ok) {
-        router.push('/dashboard/requests')
-        return
-      }
-      const data = await response.json()
-      setRequest(data.request)
-
-      if (data.request.status === 'pending' && outputEvents.length > 0) {
-        await updateRequestStatus('completed')
-      }
-    } catch (error) {
-      console.error('Failed to fetch request:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [requestId, outputEvents.length, router])
-
-  useEffect(() => {
-    if (!requestId) return
-    fetchRequest()
-  }, [requestId, fetchRequest])
-
   const updateRequestStatus = useCallback(async (status: string) => {
     if (!requestId) return
     try {
       // Generate naddr for first output event
       let firstOutputNaddr: string | null = null
       if (outputEvents.length > 0) {
-        const firstOutput = outputEvents[0]
-        const dTag = firstOutput.tags.find((t) => t[0] === 'd')?.[1]
-        
-        if (dTag && firstOutput.pubkey) {
-          try {
-            firstOutputNaddr = nip19.naddrEncode({
-              kind: firstOutput.kind || 37573,
-              pubkey: firstOutput.pubkey,
-              identifier: dTag,
-            })
-          } catch (err) {
-            console.error('Failed to generate naddr:', err)
-          }
+        firstOutputNaddr = buildOutputEventNaddr(outputEvents[0])
+        if (!firstOutputNaddr) {
+          console.error('Failed to generate naddr for first output event')
         }
       }
 
@@ -102,6 +66,32 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
       console.error('Failed to update request:', error)
     }
   }, [requestId, outputEvents, feedbackEvents])
+
+  const fetchRequest = useCallback(async () => {
+    if (!requestId) return
+    try {
+      const response = await fetch(`/api/requests/${requestId}`)
+      if (!response.ok) {
+        router.push('/dashboard/requests')
+        return
+      }
+      const data = await response.json()
+      setRequest(data.request)
+
+      if (data.request.status === 'pending' && outputEvents.length > 0) {
+        await updateRequestStatus('completed')
+      }
+    } catch (error) {
+      console.error('Failed to fetch request:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [requestId, outputEvents.length, router, updateRequestStatus])
+
+  useEffect(() => {
+    if (!requestId) return
+    fetchRequest()
+  }, [requestId, fetchRequest])
 
   useEffect(() => {
     if (request && request.status === 'pending' && outputEvents.length > 0) {

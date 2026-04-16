@@ -162,8 +162,10 @@ function saveToCache(announcements: ServiceAnnouncement[]): void {
   if (typeof window === 'undefined') return
 
   try {
+    // Remove rawEvent to avoid circular references
+    const serializableAnnouncements = announcements.map(({ rawEvent, ...rest }) => rest)
     const data: CachedData = {
-      announcements,
+      announcements: serializableAnnouncements as ServiceAnnouncement[],
       timestamp: Date.now()
     }
     localStorage.setItem(CACHE_KEY, JSON.stringify(data))

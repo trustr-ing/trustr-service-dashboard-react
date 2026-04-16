@@ -8,7 +8,7 @@ import { POVInput } from '@/components/POVInput'
 import { InterpreterBuilder } from '@/components/InterpreterBuilder'
 import { getNDK, getNip07Signer } from '@/lib/nostr/ndk'
 import { buildServiceRequestEvent, type ServiceRequestConfig } from '@/lib/nostr/events'
-import { useSubscriptionPubkey } from '@/lib/hooks/useSubscriptionPubkey'
+import { useServiceAnnouncements } from '@/lib/hooks/useServiceAnnouncements'
 
 interface Interpreter {
   type: string
@@ -24,8 +24,9 @@ interface Interpreter {
 
 export default function GrapeRankRequestPage() {
   const router = useRouter()
-  const { subscriptionPubkey, loading: subscriptionLoading, error: subscriptionError } = useSubscriptionPubkey()
+  const { announcements } = useServiceAnnouncements()
   const [userPubkey, setUserPubkey] = useState<string>('')
+  const [servicePubkey, setServicePubkey] = useState<string | null>(null)
   const [formData, setFormData] = useState<Record<string, string>>({
     title: '',
     pov: '',
@@ -50,13 +51,9 @@ export default function GrapeRankRequestPage() {
           const user = await signer.user()
           if (user.pubkey) {
             setUserPubkey(user.pubkey)
-            // Always populate POV with user's pubkey if it's empty
-            setFormData(prev => {
-              if (!prev.pov || prev.pov === '') {
-                return { ...prev, pov: user.pubkey }
-              }
-              return prev
-            })
+            if (!isUpdate) {
+              setFormData(prev => ({ ...prev, pov: user.pubkey }))
+            }
           }
         }
       } catch (err) {
@@ -65,6 +62,13 @@ export default function GrapeRankRequestPage() {
     }
     fetchUserPubkey()
   }, [isUpdate])
+
+  useEffect(() => {
+    const grapeRankAnnouncement = announcements.find(a => a.serviceId === 'trustr_graperank')
+    if (grapeRankAnnouncement) {
+      setServicePubkey(grapeRankAnnouncement.pubkey)
+    }
+  }, [announcements])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -182,11 +186,11 @@ export default function GrapeRankRequestPage() {
         ...(grapeRankInterpreters.length > 0 ? { interpreters: JSON.stringify(grapeRankInterpreters) } : {})
       }
 
-      if (!subscriptionPubkey) {
-        throw new Error('No subscription found. Please refresh and try again.')
+      if (!servicePubkey) {
+        throw new Error('GrapeRank service not available. Please refresh and try again.')
       }
 
-      const event = buildServiceRequestEvent('trustr_graperank', subscriptionPubkey, configData as ServiceRequestConfig, 37573, dTag || undefined)
+      const event = buildServiceRequestEvent('trustr_graperank', servicePubkey, configData as ServiceRequestConfig, 37573, dTag || undefined)
       
       await event.sign(signer)
       await event.publish()

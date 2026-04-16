@@ -1,5 +1,6 @@
 import { NDKEvent } from '@nostr-dev-kit/ndk'
 import { getNDK } from './ndk'
+import { extractRelayHintsFromEvent } from './naddr'
 
 export interface ServiceRequestConfig {
   title?: string
@@ -127,6 +128,7 @@ export interface ParsedOutputEvent {
   content: string
   data: Record<string, unknown>
   tags: string[][]
+  relayHints: string[]
   timestamp: number
   pubkey: string
   kind: number
@@ -146,6 +148,7 @@ export function parseOutputEvent(event: NDKEvent): ParsedOutputEvent {
     content: event.content,
     data,
     tags: event.tags,
+    relayHints: extractRelayHintsFromEvent(event),
     timestamp: event.created_at || 0,
     pubkey: event.pubkey,
     kind: event.kind || 37573,
