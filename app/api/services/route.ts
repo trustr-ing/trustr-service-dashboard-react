@@ -4,7 +4,7 @@ const ORCHESTRATOR_URL = process.env.ORCHESTRATOR_URL || 'http://167.99.181.211:
 
 export async function GET() {
   try {
-    const response = await fetch(`${ORCHESTRATOR_URL}/services`, {
+    const response = await fetch(`${ORCHESTRATOR_URL}/api/services`, {
       cache: 'no-store'
     })
     
