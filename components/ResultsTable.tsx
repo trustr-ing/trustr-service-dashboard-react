@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { fetchProfiles, getDisplayName, type NostrProfile } from '@/lib/nostr/profiles'
@@ -22,8 +22,34 @@ export function ResultsTable({ results, title, description, showProfiles = true 
   const [profiles, setProfiles] = useState<Map<string, NostrProfile>>(new Map())
   const [loadingProfiles, setLoadingProfiles] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<'rank-desc' | 'rank-asc' | 'pubkey-asc'>('rank-desc')
+  const [rankFocus, setRankFocus] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const resultsPerPage = 20
+
+  const rankBounds = useMemo(() => {
+    if (results.length === 0) {
+      return { min: 0, max: 0 }
+    }
+
+    let min = Number.POSITIVE_INFINITY
+    let max = Number.NEGATIVE_INFINITY
+
+    for (const result of results) {
+      if (result.score < min) min = result.score
+      if (result.score > max) max = result.score
+    }
+
+    return { min, max }
+  }, [results])
+
+  const rankFocusWindow = useMemo(() => {
+    const span = rankBounds.max - rankBounds.min
+    if (span <= 0) {
+      return 0
+    }
+    return Math.max(span * 0.06, 0.01)
+  }, [rankBounds.max, rankBounds.min])
 
   useEffect(() => {
     if (!showProfiles || results.length === 0) return
@@ -99,8 +125,7 @@ export function ResultsTable({ results, title, description, showProfiles = true 
     return `${Math.max(score * 100, 5)}%`
   }
 
-  // Filter results based on search query
-  const filteredResults = results.filter(result => {
+  const searchFilteredResults = results.filter(result => {
     if (!searchQuery) return true
     
     const query = searchQuery.toLowerCase()
@@ -114,16 +139,33 @@ export function ResultsTable({ results, title, description, showProfiles = true 
     )
   })
 
+  const rankFilteredResults = searchFilteredResults.filter(result => {
+    if (rankFocus === null) {
+      return true
+    }
+    return Math.abs(result.score - rankFocus) <= rankFocusWindow
+  })
+
+  const sortedResults = [...rankFilteredResults].sort((a, b) => {
+    if (sortBy === 'rank-asc') {
+      return a.score - b.score
+    }
+    if (sortBy === 'pubkey-asc') {
+      return a.pubkey.localeCompare(b.pubkey)
+    }
+    return b.score - a.score
+  })
+
   // Calculate pagination
-  const totalPages = Math.ceil(filteredResults.length / resultsPerPage)
+  const totalPages = Math.ceil(sortedResults.length / resultsPerPage)
   const startIndex = (currentPage - 1) * resultsPerPage
   const endIndex = startIndex + resultsPerPage
-  const paginatedResults = filteredResults.slice(startIndex, endIndex)
+  const paginatedResults = sortedResults.slice(startIndex, endIndex)
 
-  // Reset to page 1 when search query changes
+  // Reset to page 1 when filters/sort change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery])
+  }, [searchQuery, rankFocus, sortBy])
 
   if (results.length === 0) {
     return (
@@ -179,10 +221,70 @@ export function ResultsTable({ results, title, description, showProfiles = true 
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
             />
-            {searchQuery && (
-              <p className="text-xs text-gray-500 mt-1">
-                Showing {filteredResults.length} of {results.length} results
-              </p>
+
+            <div className="mt-3 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-300" htmlFor="results-sort">
+                  Sort
+                </label>
+                <select
+                  id="results-sort"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'rank-desc' | 'rank-asc' | 'pubkey-asc')}
+                  className="text-xs border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-800"
+                >
+                  <option value="rank-desc">Rank value: high → low</option>
+                  <option value="rank-asc">Rank value: low → high</option>
+                  <option value="pubkey-asc">Pubkey: A → Z</option>
+                </select>
+              </div>
+
+              <div className="rounded-md border border-gray-200 dark:border-gray-700 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                    Rank Focus
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {rankFocus !== null && (
+                      <span className="text-xs text-gray-500">
+                        {formatScore(rankFocus - rankFocusWindow)} to {formatScore(rankFocus + rankFocusWindow)}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setRankFocus(null)}
+                      className="text-xs text-blue-600 hover:underline disabled:text-gray-400"
+                      disabled={rankFocus === null}
+                    >
+                      Show all
+                    </button>
+                  </div>
+                </div>
+
+                <input
+                  type="range"
+                  min={rankBounds.min}
+                  max={rankBounds.max}
+                  step={Math.max((rankBounds.max - rankBounds.min) / 200, 0.0001)}
+                  value={rankFocus ?? rankBounds.max}
+                  onChange={(e) => setRankFocus(parseFloat(e.target.value))}
+                  disabled={rankBounds.max === rankBounds.min}
+                  className="w-full"
+                />
+
+                <p className="text-xs text-gray-500">
+                  {rankFocus === null
+                    ? 'Showing all rank values. Move slider to focus around a score band.'
+                    : `Focused around ${formatScore(rankFocus)} (±${formatScore(rankFocusWindow)}).`}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500 mt-2">
+              Showing {rankFilteredResults.length} of {results.length} results
+            </p>
+            {loadingProfiles && showProfiles && (
+              <p className="text-xs text-gray-500 mt-1">Loading profile metadata...</p>
             )}
           </div>
         )}
@@ -229,7 +331,7 @@ export function ResultsTable({ results, title, description, showProfiles = true 
                         </span>
                       )}
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Score: {formatScore(result.score)}
+                        Rank Value: {formatScore(result.score)}
                       </span>
                       {result.confidence !== undefined && (
                         <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -311,19 +413,20 @@ export function parseOutputEventResults(event: { tags: string[][] }): RankedResu
     if (tag.length < 3) {
       continue
     }
-    
-    // GrapeRank format: ["p", pubkey, rank, confidence]
-    // tag[2] is rank (GrapeRank score 0-1)
-    // tag[3] is confidence (0-1)
-    const rankValue = tag[2] ? parseFloat(tag[2]) : 0
-    const confidence = tag[3] ? parseFloat(tag[3]) : undefined
-    
-    // Score is the confidence value (0-1 range)
-    const score = confidence !== undefined ? confidence : 0
-    
+
+    // TSM output format: ["p", pubkey, rank]
+    // If present, extra value(s) may include confidence metadata.
+    const rankValue = tag[2] ? parseFloat(tag[2]) : NaN
+    if (!Number.isFinite(rankValue)) {
+      continue
+    }
+
+    const confidenceValue = tag[3] ? parseFloat(tag[3]) : NaN
+    const confidence = Number.isFinite(confidenceValue) ? confidenceValue : undefined
+
     results.push({
       pubkey,
-      score,
+      score: rankValue,
       confidence,
       rank: currentRank++
     })
