@@ -52,9 +52,14 @@ export default function GrapeRankRequestPage() {
           const user = await signer.user()
           if (user.pubkey) {
             setUserPubkey(user.pubkey)
-            if (!isUpdate) {
-              setFormData(prev => ({ ...prev, pov: user.pubkey }))
-            }
+            setFormData(previousFormData => {
+              const hasExistingPov = Boolean(previousFormData.pov?.trim())
+              if (isUpdate || hasExistingPov) {
+                return previousFormData
+              }
+
+              return { ...previousFormData, pov: user.pubkey }
+            })
           }
         }
       } catch (err) {

@@ -32,17 +32,23 @@ export function POVInput({ value, onChange, disabled, userPubkey, allowMultiple 
 
   // Auto-detect mode from value
   useEffect(() => {
-    if (value && value.trim()) {
-      if (value.startsWith('naddr1')) {
-        setMode('naddr')
-      } else if (/^[0-9a-f]{64}$/i.test(value)) {
-        setMode('pubkey')
-        if (allowMultiple) {
-          setPubkeys([value])
-        }
+    const normalizedValue = value.trim()
+    if (!normalizedValue) {
+      return
+    }
+
+    if (mode !== 'selector' && normalizedValue.startsWith('naddr1')) {
+      setMode('naddr')
+      return
+    }
+
+    if (mode !== 'selector' && /^[0-9a-f]{64}$/i.test(normalizedValue)) {
+      setMode('pubkey')
+      if (allowMultiple) {
+        setPubkeys([normalizedValue])
       }
     }
-  }, [])
+  }, [allowMultiple, mode, value])
 
   // Fetch past requests when selector mode is activated
   useEffect(() => {
