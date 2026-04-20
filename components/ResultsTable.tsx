@@ -129,6 +129,14 @@ export function ResultsTable({ results, title, description, showProfiles = true 
     return `${Math.max(score * 100, 5)}%`
   }
 
+  const getExternalResultUrl = (result: RankedResult): string | null => {
+    if (!result.subject) {
+      return null
+    }
+
+    return `https://njump.me/${encodeURIComponent(result.subject)}`
+  }
+
   const searchFilteredResults = results.filter(result => {
     if (!searchQuery) return true
     
@@ -299,6 +307,7 @@ export function ResultsTable({ results, title, description, showProfiles = true 
             const profile = profiles.get(result.subject)
             const displayName = profile ? getDisplayName(profile) : `${result.subject.slice(0, 12)}...`
             const avatarSource = profile?.picture || `https://api.dicebear.com/7.x/identicon/svg?seed=${result.subject}`
+            const externalResultUrl = getExternalResultUrl(result)
             
             return (
               <div
@@ -346,6 +355,16 @@ export function ResultsTable({ results, title, description, showProfiles = true 
                       <code className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all">
                         {result.subject}
                       </code>
+                      {externalResultUrl && (
+                        <a
+                          href={externalResultUrl}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="text-xs text-blue-600 hover:underline"
+                        >
+                          njump.me
+                        </a>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
