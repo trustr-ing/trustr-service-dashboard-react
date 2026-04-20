@@ -10,10 +10,8 @@ import { fetchServicePubkey } from '@/lib/nostr/services'
 import { NDKEvent } from '@nostr-dev-kit/ndk'
 import { useServiceAnnouncements } from '@/lib/hooks/useServiceAnnouncements'
 
-const PUBKEY_TYPE_ALIASES = new Set(['pubkey', 'p', 'P'])
-
-function canonicalRankTypeForConfigType(rawType: string): 'pubkey' | 'id' {
-  return PUBKEY_TYPE_ALIASES.has(rawType) ? 'pubkey' : 'id'
+function normalizeRankType(rawRankType: string): 'pubkey' | 'id' {
+  return rawRankType === 'pubkey' ? 'pubkey' : 'id'
 }
 
 export default function SemanticRankingRequestPage() {
@@ -25,7 +23,7 @@ export default function SemanticRankingRequestPage() {
     title: '',
     pov: '',
     type: 'p',
-    rank_type: 'pubkey',
+    rank_type: 'id',
     rank_kind: '1',
     model: 'fused',
     context: '',
@@ -86,6 +84,10 @@ export default function SemanticRankingRequestPage() {
           newFormData[key] = value
         }
       })
+
+      if (newFormData.rank_type) {
+        newFormData.rank_type = normalizeRankType(newFormData.rank_type)
+      }
       
       setFormData(prev => ({ ...prev, ...newFormData }))
       
@@ -154,13 +156,10 @@ export default function SemanticRankingRequestPage() {
       if (formData.type) event.tags.push(['config', 'type', formData.type])
       if (formData.minrank) event.tags.push(['config', 'minrank', formData.minrank])
 
-      const canonicalRankType =
-        formData.rank_type === 'pubkey' || formData.rank_type === 'id'
-          ? formData.rank_type
-          : canonicalRankTypeForConfigType(formData.type)
+      const normalizedRankType = normalizeRankType(formData.rank_type)
 
       // Add option tags
-      if (canonicalRankType) event.tags.push(['option', 'rank_type', canonicalRankType])
+      if (normalizedRankType) event.tags.push(['option', 'rank_type', normalizedRankType])
       if (formData.rank_kind) event.tags.push(['option', 'rank_kind', formData.rank_kind])
       if (formData.model) event.tags.push(['option', 'model', formData.model])
       if (formData.context) event.tags.push(['option', 'context', formData.context])
@@ -181,8 +180,12 @@ export default function SemanticRankingRequestPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             eventId: event.id,
-            configData: JSON.stringify(formData),
+            configData: JSON.stringify({ ...formData, rank_type: normalizedRankType }),
             status: 'pending',
+            resultEventIds: [],
+            feedbackEventIds: [],
+            firstOutputNaddr: null,
+            completedAt: null,
           }),
         })
       } else {
@@ -192,7 +195,7 @@ export default function SemanticRankingRequestPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             eventId: event.id,
-            configData: formData,
+            configData: { ...formData, rank_type: normalizedRankType },
           }),
         })
       }
@@ -266,14 +269,7 @@ export default function SemanticRankingRequestPage() {
                   <select
                     required
                     value={formData.type}
-                    onChange={(e) => {
-                      const nextType = e.target.value
-                      setFormData({
-                        ...formData,
-                        type: nextType,
-                        rank_type: canonicalRankTypeForConfigType(nextType),
-                      })
-                    }}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                     className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
                   >
                     <option value="p">p</option>

@@ -58,13 +58,17 @@ export async function PATCH(
     const { status, eventId, configData, resultEventIds, feedbackEventIds, completedAt, firstOutputNaddr } = body
 
     const updateData: Record<string, unknown> = {}
-    if (status) updateData.status = status
-    if (eventId) updateData.eventId = eventId
-    if (configData) updateData.configData = configData
-    if (resultEventIds) updateData.resultEventIds = JSON.stringify(resultEventIds)
-    if (feedbackEventIds) updateData.feedbackEventIds = JSON.stringify(feedbackEventIds)
-    if (completedAt) updateData.completedAt = new Date(completedAt)
-    if (firstOutputNaddr) updateData.firstOutputNaddr = firstOutputNaddr
+    if ('status' in body) updateData.status = status
+    if ('eventId' in body) updateData.eventId = eventId
+    if ('configData' in body) updateData.configData = configData
+    if ('resultEventIds' in body) updateData.resultEventIds = JSON.stringify(resultEventIds ?? [])
+    if ('feedbackEventIds' in body) updateData.feedbackEventIds = JSON.stringify(feedbackEventIds ?? [])
+    if ('completedAt' in body) {
+      updateData.completedAt = completedAt ? new Date(completedAt) : null
+    }
+    if ('firstOutputNaddr' in body) {
+      updateData.firstOutputNaddr = firstOutputNaddr ?? null
+    }
 
     // Check if id is numeric (database id) or hex string (eventId)
     const isNumeric = /^\d+$/.test(id)
