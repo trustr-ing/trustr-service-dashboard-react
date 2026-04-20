@@ -18,11 +18,13 @@ export default function SemanticRankingRequestPage() {
   const [formData, setFormData] = useState<Record<string, string>>({
     title: '',
     pov: '',
-    type: 'p',
+    type: 'pubkey',
+    rank_type: 'pubkey',
+    rank_kind: '1',
     model: 'fused',
     context: '',
     lambda: '1.0',
-    minrank: '0.0001',
+    minrank: '0',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -144,17 +146,18 @@ export default function SemanticRankingRequestPage() {
       // Add config tags
       if (formData.pov) event.tags.push(['config', 'pov', formData.pov])
       if (formData.type) event.tags.push(['config', 'type', formData.type])
-      
+      if (formData.minrank) event.tags.push(['config', 'minrank', formData.minrank])
+
       // Add option tags
+      if (formData.rank_type) event.tags.push(['option', 'rank_type', formData.rank_type])
+      if (formData.rank_kind) event.tags.push(['option', 'rank_kind', formData.rank_kind])
       if (formData.model) event.tags.push(['option', 'model', formData.model])
       if (formData.context) event.tags.push(['option', 'context', formData.context])
       if (formData.lambda) event.tags.push(['option', 'lambda', formData.lambda])
       if (formData.context_weight) event.tags.push(['option', 'context_weight', formData.context_weight])
       if (formData.pool_start) event.tags.push(['option', 'pool_start', formData.pool_start])
       if (formData.pool_end) event.tags.push(['option', 'pool_end', formData.pool_end])
-      if (formData.pool_pct) event.tags.push(['option', 'pool_pct', formData.pool_pct])
       if (formData.exclude_follows === 'true') event.tags.push(['option', 'exclude_follows', 'true'])
-      if (formData.include_follows === 'true') event.tags.push(['option', 'include_follows', 'true'])
       if (formData.reverse === 'true') event.tags.push(['option', 'reverse', 'true'])
       
       await event.sign(signer)
@@ -201,7 +204,7 @@ export default function SemanticRankingRequestPage() {
         <p className="text-gray-600 dark:text-gray-400">
           {isUpdate 
             ? `Updating request ${originalEventId?.slice(0, 8)}... - This will re-trigger the ranking service`
-            : 'Rank pubkeys using semantic similarity and social graph embeddings'
+            : 'Rank event references using semantic similarity and optional trust weighting'
           }
         </p>
       </div>
@@ -243,6 +246,65 @@ export default function SemanticRankingRequestPage() {
                 disabled={loading}
                 userPubkey={userPubkey}
               />
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    POV Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.type}
+                    onChange={(e) => {
+                      const nextType = e.target.value
+                      setFormData({ ...formData, type: nextType, rank_type: nextType })
+                    }}
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                  >
+                    <option value="pubkey">pubkey</option>
+                    <option value="id">id</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    How values are extracted from the POV reference.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Rank Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.rank_type}
+                    onChange={(e) => setFormData({ ...formData, rank_type: e.target.value })}
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                  >
+                    <option value="pubkey">pubkey</option>
+                    <option value="id">id</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Candidate matching field for event ranking.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Rank Kind <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.rank_kind}
+                    onChange={(e) => setFormData({ ...formData, rank_kind: e.target.value })}
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                  >
+                    <option value="1">1 (short notes)</option>
+                    <option value="30023">30023 (long-form articles)</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Single event kind to rank for this request.
+                  </p>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">
@@ -324,11 +386,11 @@ export default function SemanticRankingRequestPage() {
                   type="text"
                   value={formData.minrank}
                   onChange={(e) => setFormData({ ...formData, minrank: e.target.value })}
-                  placeholder="0.0001"
+                  placeholder="0"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:border-gray-600"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Exclude results below this rank (default 0.0001 excludes rank == 0)
+                  Exclude normalized results below this rank threshold.
                 </p>
               </div>
 
@@ -357,23 +419,6 @@ export default function SemanticRankingRequestPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Pool Percentage: {formData.pool_pct || '100'}%
-                </label>
-                <input
-                  type="range"
-                  min="1"
-                  max="100"
-                  value={formData.pool_pct || '100'}
-                  onChange={(e) => setFormData({ ...formData, pool_pct: e.target.value })}
-                  className="w-full"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Percentage of candidate pool to consider (1-100)
-                </p>
-              </div>
-
               <div className="space-y-2">
                 <label className="flex items-center gap-2">
                   <input
@@ -383,15 +428,6 @@ export default function SemanticRankingRequestPage() {
                     className="rounded"
                   />
                   <span className="text-sm">Exclude follows from results</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.include_follows === 'true'}
-                    onChange={(e) => setFormData({ ...formData, include_follows: e.target.checked ? 'true' : '' })}
-                    className="rounded"
-                  />
-                  <span className="text-sm">Include follows in candidate pool</span>
                 </label>
                 <label className="flex items-center gap-2">
                   <input

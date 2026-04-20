@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
+import Image from 'next/image'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { fetchProfiles, getDisplayName, type NostrProfile } from '@/lib/nostr/profiles'
 
 interface RankedResult {
-  pubkey: string
+  subject: string
+  resultTag: 'p' | 'e' | 'a'
   score: number
   confidence?: number
   rank: number
@@ -22,10 +24,11 @@ export function ResultsTable({ results, title, description, showProfiles = true 
   const [profiles, setProfiles] = useState<Map<string, NostrProfile>>(new Map())
   const [loadingProfiles, setLoadingProfiles] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<'rank-desc' | 'rank-asc' | 'pubkey-asc'>('rank-desc')
+  const [sortBy, setSortBy] = useState<'rank-desc' | 'rank-asc' | 'subject-asc'>('rank-desc')
   const [rankFocus, setRankFocus] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const resultsPerPage = 20
+  const canShowProfiles = showProfiles && results.every(result => result.resultTag === 'p')
 
   const rankBounds = useMemo(() => {
     if (results.length === 0) {
@@ -52,12 +55,12 @@ export function ResultsTable({ results, title, description, showProfiles = true 
   }, [rankBounds.max, rankBounds.min])
 
   useEffect(() => {
-    if (!showProfiles || results.length === 0) return
+    if (!canShowProfiles || results.length === 0) return
 
     const loadProfiles = async () => {
       setLoadingProfiles(true)
       try {
-        const pubkeys = results.map(r => r.pubkey)
+        const pubkeys = results.map(result => result.subject)
         const fetchedProfiles = await fetchProfiles(pubkeys)
         setProfiles(fetchedProfiles)
       } catch (err) {
@@ -68,7 +71,7 @@ export function ResultsTable({ results, title, description, showProfiles = true 
     }
 
     loadProfiles()
-  }, [results, showProfiles])
+  }, [canShowProfiles, results])
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -81,10 +84,11 @@ export function ResultsTable({ results, title, description, showProfiles = true 
   }
 
   const exportToCSV = () => {
-    const headers = ['Rank', 'Pubkey', 'Score', 'Confidence']
+    const headers = ['Rank', 'Tag', 'Subject', 'Score', 'Confidence']
     const rows = results.map(r => [
       r.rank,
-      r.pubkey,
+      r.resultTag,
+      r.subject,
       r.score,
       r.confidence || ''
     ])
@@ -129,11 +133,11 @@ export function ResultsTable({ results, title, description, showProfiles = true 
     if (!searchQuery) return true
     
     const query = searchQuery.toLowerCase()
-    const profile = profiles.get(result.pubkey)
+    const profile = profiles.get(result.subject)
     const displayName = profile ? getDisplayName(profile).toLowerCase() : ''
     
     return (
-      result.pubkey.toLowerCase().includes(query) ||
+      result.subject.toLowerCase().includes(query) ||
       displayName.includes(query) ||
       result.rank.toString().includes(query)
     )
@@ -150,8 +154,8 @@ export function ResultsTable({ results, title, description, showProfiles = true 
     if (sortBy === 'rank-asc') {
       return a.score - b.score
     }
-    if (sortBy === 'pubkey-asc') {
-      return a.pubkey.localeCompare(b.pubkey)
+    if (sortBy === 'subject-asc') {
+      return a.subject.localeCompare(b.subject)
     }
     return b.score - a.score
   })
@@ -216,7 +220,7 @@ export function ResultsTable({ results, title, description, showProfiles = true 
           <div className="mt-4">
             <input
               type="text"
-              placeholder="Search by pubkey, name, or rank..."
+              placeholder="Search by subject, name, or rank..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
@@ -230,12 +234,12 @@ export function ResultsTable({ results, title, description, showProfiles = true 
                 <select
                   id="results-sort"
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as 'rank-desc' | 'rank-asc' | 'pubkey-asc')}
+                  onChange={(e) => setSortBy(e.target.value as 'rank-desc' | 'rank-asc' | 'subject-asc')}
                   className="text-xs border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-800"
                 >
                   <option value="rank-desc">Rank value: high → low</option>
                   <option value="rank-asc">Rank value: low → high</option>
-                  <option value="pubkey-asc">Pubkey: A → Z</option>
+                  <option value="subject-asc">Subject: A → Z</option>
                 </select>
               </div>
 
@@ -283,7 +287,7 @@ export function ResultsTable({ results, title, description, showProfiles = true 
             <p className="text-xs text-gray-500 mt-2">
               Showing {rankFilteredResults.length} of {results.length} results
             </p>
-            {loadingProfiles && showProfiles && (
+            {loadingProfiles && canShowProfiles && (
               <p className="text-xs text-gray-500 mt-1">Loading profile metadata...</p>
             )}
           </div>
@@ -292,31 +296,26 @@ export function ResultsTable({ results, title, description, showProfiles = true 
       <CardContent>
         <div className="space-y-2">
           {paginatedResults.map((result, idx) => {
-            const profile = profiles.get(result.pubkey)
-            const displayName = profile ? getDisplayName(profile) : `${result.pubkey.slice(0, 8)}...`
+            const profile = profiles.get(result.subject)
+            const displayName = profile ? getDisplayName(profile) : `${result.subject.slice(0, 12)}...`
+            const avatarSource = profile?.picture || `https://api.dicebear.com/7.x/identicon/svg?seed=${result.subject}`
             
             return (
               <div
-                key={`${result.pubkey}-${idx}`}
+                key={`${result.resultTag}:${result.subject}-${idx}`}
                 className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
               >
                 <div className="flex items-start gap-4">
-                  {showProfiles && (
+                  {canShowProfiles && (
                     <div className="flex-shrink-0">
-                      {profile?.picture ? (
-                        <img
-                          src={profile.picture}
-                          alt={displayName}
-                          className="w-12 h-12 rounded-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = `https://api.dicebear.com/7.x/identicon/svg?seed=${result.pubkey}`
-                          }}
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
-                          {displayName.slice(0, 2).toUpperCase()}
-                        </div>
-                      )}
+                      <Image
+                        src={avatarSource}
+                        alt={displayName}
+                        width={48}
+                        height={48}
+                        unoptimized
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
                     </div>
                   )}
                   
@@ -325,11 +324,14 @@ export function ResultsTable({ results, title, description, showProfiles = true 
                       <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                         #{result.rank}
                       </span>
-                      {showProfiles && (
+                      {canShowProfiles && (
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {displayName}
                         </span>
                       )}
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">
+                        {result.resultTag}
+                      </span>
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         Rank Value: {formatScore(result.score)}
                       </span>
@@ -342,15 +344,15 @@ export function ResultsTable({ results, title, description, showProfiles = true 
                     
                     <div className="flex items-center gap-2">
                       <code className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all">
-                        {result.pubkey}
+                        {result.subject}
                       </code>
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => copyToClipboard(result.pubkey)}
+                        onClick={() => copyToClipboard(result.subject)}
                         className="h-6 px-2 text-xs"
                       >
-                        {copied === result.pubkey ? '✓' : 'Copy'}
+                        {copied === result.subject ? '✓' : 'Copy'}
                       </Button>
                     </div>
                     
@@ -401,20 +403,20 @@ export function ResultsTable({ results, title, description, showProfiles = true 
 
 export function parseOutputEventResults(event: { tags: string[][] }): RankedResult[] {
   const tags = event.tags || []
-  const pTags = tags.filter((t: string[]) => t[0] === 'p' && t[1])
+  const resultTags = tags.filter((tag: string[]) => ['p', 'e', 'a'].includes(tag[0]) && tag[1])
   
   const results: RankedResult[] = []
   let currentRank = 1
   
-  for (const tag of pTags) {
-    const pubkey = tag[1]
+  for (const tag of resultTags) {
+    const subject = tag[1]
     
-    // Skip POV pubkey (first p-tag with only 2 elements)
+    // Skip reference tags (e.g. request pointer) and unranked tags.
     if (tag.length < 3) {
       continue
     }
 
-    // TSM output format: ["p", pubkey, rank]
+    // TSM output format: [tag, subject, rank]
     // If present, extra value(s) may include confidence metadata.
     const rankValue = tag[2] ? parseFloat(tag[2]) : NaN
     if (!Number.isFinite(rankValue)) {
@@ -425,7 +427,8 @@ export function parseOutputEventResults(event: { tags: string[][] }): RankedResu
     const confidence = Number.isFinite(confidenceValue) ? confidenceValue : undefined
 
     results.push({
-      pubkey,
+      subject,
+      resultTag: tag[0] as 'p' | 'e' | 'a',
       score: rankValue,
       confidence,
       rank: currentRank++

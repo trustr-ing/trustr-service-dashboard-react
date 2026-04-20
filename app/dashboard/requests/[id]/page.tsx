@@ -214,7 +214,7 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
         <ResultsTable
           results={outputEvents.flatMap(output => parseOutputEventResults(output))}
           title={`Ranked Results (${outputEvents.flatMap(output => parseOutputEventResults(output)).length})`}
-          description="Top ranked pubkeys from the service"
+          description="Top ranked event references from the service"
         />
       )}
 
