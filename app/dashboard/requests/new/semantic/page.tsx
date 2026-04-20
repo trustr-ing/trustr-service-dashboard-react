@@ -10,6 +10,12 @@ import { fetchServicePubkey } from '@/lib/nostr/services'
 import { NDKEvent } from '@nostr-dev-kit/ndk'
 import { useServiceAnnouncements } from '@/lib/hooks/useServiceAnnouncements'
 
+const PUBKEY_TYPE_ALIASES = new Set(['pubkey', 'p', 'P'])
+
+function canonicalRankTypeForConfigType(rawType: string): 'pubkey' | 'id' {
+  return PUBKEY_TYPE_ALIASES.has(rawType) ? 'pubkey' : 'id'
+}
+
 export default function SemanticRankingRequestPage() {
   const router = useRouter()
   const { announcements } = useServiceAnnouncements()
@@ -18,7 +24,7 @@ export default function SemanticRankingRequestPage() {
   const [formData, setFormData] = useState<Record<string, string>>({
     title: '',
     pov: '',
-    type: 'pubkey',
+    type: 'p',
     rank_type: 'pubkey',
     rank_kind: '1',
     model: 'fused',
@@ -148,8 +154,13 @@ export default function SemanticRankingRequestPage() {
       if (formData.type) event.tags.push(['config', 'type', formData.type])
       if (formData.minrank) event.tags.push(['config', 'minrank', formData.minrank])
 
+      const canonicalRankType =
+        formData.rank_type === 'pubkey' || formData.rank_type === 'id'
+          ? formData.rank_type
+          : canonicalRankTypeForConfigType(formData.type)
+
       // Add option tags
-      if (formData.rank_type) event.tags.push(['option', 'rank_type', formData.rank_type])
+      if (canonicalRankType) event.tags.push(['option', 'rank_type', canonicalRankType])
       if (formData.rank_kind) event.tags.push(['option', 'rank_kind', formData.rank_kind])
       if (formData.model) event.tags.push(['option', 'model', formData.model])
       if (formData.context) event.tags.push(['option', 'context', formData.context])
@@ -257,15 +268,23 @@ export default function SemanticRankingRequestPage() {
                     value={formData.type}
                     onChange={(e) => {
                       const nextType = e.target.value
-                      setFormData({ ...formData, type: nextType, rank_type: nextType })
+                      setFormData({
+                        ...formData,
+                        type: nextType,
+                        rank_type: canonicalRankTypeForConfigType(nextType),
+                      })
                     }}
                     className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
                   >
+                    <option value="p">p</option>
+                    <option value="P">P</option>
                     <option value="pubkey">pubkey</option>
                     <option value="id">id</option>
+                    <option value="e">e</option>
+                    <option value="a">a</option>
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    How values are extracted from the POV reference.
+                    Alias for subject extraction from the POV reference.
                   </p>
                 </div>
 
