@@ -14,6 +14,14 @@ function normalizeRankType(rawRankType: string): 'pubkey' | 'id' {
   return rawRankType === 'pubkey' ? 'pubkey' : 'id'
 }
 
+function normalizeMaxResults(rawMaxResults: string): string {
+  const parsedValue = Number.parseInt(rawMaxResults, 10)
+  if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
+    return '10000'
+  }
+  return String(parsedValue)
+}
+
 export default function SemanticRankingRequestPage() {
   const router = useRouter()
   const { announcements } = useServiceAnnouncements()
@@ -25,6 +33,7 @@ export default function SemanticRankingRequestPage() {
     type: 'p',
     rank_type: 'id',
     rank_kind: '1',
+    max_results: '10000',
     model: 'fused',
     context: '',
     lambda: '1.0',
@@ -87,6 +96,10 @@ export default function SemanticRankingRequestPage() {
 
       if (newFormData.rank_type) {
         newFormData.rank_type = normalizeRankType(newFormData.rank_type)
+      }
+
+      if (newFormData.max_results) {
+        newFormData.max_results = normalizeMaxResults(newFormData.max_results)
       }
       
       setFormData(prev => ({ ...prev, ...newFormData }))
@@ -157,10 +170,12 @@ export default function SemanticRankingRequestPage() {
       if (formData.minrank) event.tags.push(['config', 'minrank', formData.minrank])
 
       const normalizedRankType = normalizeRankType(formData.rank_type)
+      const normalizedMaxResults = normalizeMaxResults(formData.max_results)
 
       // Add option tags
       if (normalizedRankType) event.tags.push(['option', 'rank_type', normalizedRankType])
       if (formData.rank_kind) event.tags.push(['option', 'rank_kind', formData.rank_kind])
+      if (normalizedMaxResults) event.tags.push(['option', 'max_results', normalizedMaxResults])
       if (formData.model) event.tags.push(['option', 'model', formData.model])
       if (formData.context) event.tags.push(['option', 'context', formData.context])
       if (formData.lambda) event.tags.push(['option', 'lambda', formData.lambda])
@@ -180,7 +195,11 @@ export default function SemanticRankingRequestPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             eventId: event.id,
-            configData: JSON.stringify({ ...formData, rank_type: normalizedRankType }),
+            configData: JSON.stringify({
+              ...formData,
+              rank_type: normalizedRankType,
+              max_results: normalizedMaxResults,
+            }),
             status: 'pending',
             resultEventIds: [],
             feedbackEventIds: [],
@@ -195,7 +214,11 @@ export default function SemanticRankingRequestPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             eventId: event.id,
-            configData: { ...formData, rank_type: normalizedRankType },
+            configData: {
+              ...formData,
+              rank_type: normalizedRankType,
+              max_results: normalizedMaxResults,
+            },
           }),
         })
       }
@@ -406,6 +429,24 @@ export default function SemanticRankingRequestPage() {
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Exclude normalized results below this rank threshold.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Max Results
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={formData.max_results || '10000'}
+                  onChange={(e) => setFormData({ ...formData, max_results: e.target.value })}
+                  placeholder="10000"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:border-gray-600"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Upper bound for ranked results before minrank filtering (default: 10000).
                 </p>
               </div>
 
