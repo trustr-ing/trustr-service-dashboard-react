@@ -8,7 +8,9 @@ interface RankedResult {
   subject: string
   resultTag: 'p' | 'e' | 'a'
   score: number
+  povRank?: number
   confidence?: number
+  rankingMetadata?: Record<string, unknown>
   rank: number
 }
 
@@ -84,13 +86,15 @@ export function ResultsTable({ results, title, description, showProfiles = true 
   }
 
   const exportToCSV = () => {
-    const headers = ['Rank', 'Tag', 'Subject', 'Score', 'Confidence']
+    const headers = ['Rank', 'Tag', 'Subject', 'Score', 'POV Rank', 'Confidence', 'Ranking Metadata']
     const rows = results.map(r => [
       r.rank,
       r.resultTag,
       r.subject,
       r.score,
-      r.confidence || ''
+      r.povRank ?? '',
+      r.confidence ?? '',
+      r.rankingMetadata ? JSON.stringify(r.rankingMetadata) : ''
     ])
     
     const csvContent = [
@@ -344,6 +348,11 @@ export function ResultsTable({ results, title, description, showProfiles = true 
                       <span className="text-xs text-gray-500 dark:text-gray-400">
                         Rank Value: {formatScore(result.score)}
                       </span>
+                      {result.povRank !== undefined && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          POV Rank: {formatScore(result.povRank)}
+                        </span>
+                      )}
                       {result.confidence !== undefined && (
                         <span className="text-xs text-gray-500 dark:text-gray-400">
                           Confidence: {formatScore(result.confidence)}
@@ -435,21 +444,39 @@ export function parseOutputEventResults(event: { tags: string[][] }): RankedResu
       continue
     }
 
-    // TSM output format: [tag, subject, rank]
-    // If present, extra value(s) may include confidence metadata.
+    // TSM output format:
+    // [tag, subject, rank, pov_rank?, ranking_metadata_json?]
     const rankValue = tag[2] ? parseFloat(tag[2]) : NaN
     if (!Number.isFinite(rankValue)) {
       continue
     }
 
-    const confidenceValue = tag[3] ? parseFloat(tag[3]) : NaN
+    const povRankValue = tag[3] ? parseFloat(tag[3]) : NaN
+    const povRank = Number.isFinite(povRankValue) ? povRankValue : undefined
+
+    let rankingMetadata: Record<string, unknown> | undefined
+    if (tag[4]) {
+      try {
+        const parsedMetadata = JSON.parse(tag[4])
+        if (parsedMetadata && typeof parsedMetadata === 'object' && !Array.isArray(parsedMetadata)) {
+          rankingMetadata = parsedMetadata as Record<string, unknown>
+        }
+      } catch {
+        rankingMetadata = undefined
+      }
+    }
+
+    const rawConfidence = rankingMetadata?.confidence
+    const confidenceValue = typeof rawConfidence === 'number' ? rawConfidence : NaN
     const confidence = Number.isFinite(confidenceValue) ? confidenceValue : undefined
 
     results.push({
       subject,
       resultTag: tag[0] as 'p' | 'e' | 'a',
       score: rankValue,
+      povRank,
       confidence,
+      rankingMetadata,
       rank: currentRank++
     })
   }
