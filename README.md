@@ -163,8 +163,23 @@ npm start
 ```env
 DATABASE_URL=/opt/trustr-service-dashboard/data/dashboard.db
 SESSION_SECRET=<production-secret-64-chars>
-ORCHESTRATOR_URL=http://10.118.0.3:8080
+ORCHESTRATOR_API_URL=http://10.118.0.3:3002
+# Optional fallback:
+# ORCHESTRATOR_URL=http://10.118.0.3:3002
 NEXT_PUBLIC_DEFAULT_RELAYS=wss://relay.damus.io,wss://nos.lol
+```
+
+`/api/services` tries orchestrator base URLs in this order:
+1. `ORCHESTRATOR_API_URL`
+2. `ORCHESTRATOR_URL`
+3. hardcoded production fallback
+
+### Production Deploy (safe sync)
+
+Use the built-in deploy helper to avoid syncing local env files like `.env.local` into production:
+
+```bash
+bash scripts/deploy-production.sh root@137.184.162.114
 ```
 
 ### Systemd Service
