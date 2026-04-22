@@ -11,6 +11,9 @@ import { buildServiceRequestEvent, type ServiceRequestConfig } from '@/lib/nostr
 import { fetchServicePubkey } from '@/lib/nostr/services'
 import { useServiceAnnouncements } from '@/lib/hooks/useServiceAnnouncements'
 
+const graperankAllowedRequestTypes = ['p', 'P', 'pubkey'] as const
+const graperankAllowedRequestTypeSet = new Set<string>(graperankAllowedRequestTypes)
+
 interface Interpreter {
   type: string
   actorType?: string
@@ -31,7 +34,7 @@ export default function GrapeRankRequestPage() {
   const [formData, setFormData] = useState<Record<string, string>>({
     title: '',
     pov: '',
-    type: 'p',
+    type: graperankAllowedRequestTypes[0],
     minrank: '0.0001',
     attenuation: '0.5',
     rigor: '0.5',
@@ -84,12 +87,18 @@ export default function GrapeRankRequestPage() {
     if (updateMode && eventId) {
       setIsUpdate(true)
       setOriginalEventId(eventId)
+
+      const requestType = params.get('type')
+      const normalizedRequestType =
+        requestType && graperankAllowedRequestTypeSet.has(requestType)
+          ? requestType
+          : graperankAllowedRequestTypes[0]
       
       // Pre-fill form with query params
       const newFormData: Record<string, string> = {
         title: params.get('title') || '',
         pov: params.get('pov') || '',
-        type: params.get('type') || 'p',
+        type: normalizedRequestType,
         minrank: params.get('minrank') || '0.0001',
         attenuation: params.get('attenuation') || '0.5',
         rigor: params.get('rigor') || '0.5',
@@ -302,14 +311,20 @@ export default function GrapeRankRequestPage() {
                 <label className="block text-sm font-medium mb-1">
                   Type
                 </label>
-                <input
-                  type="text"
-                  value="p"
-                  disabled
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 px-3 py-2 text-gray-500"
-                />
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  disabled={loading}
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                >
+                  {graperankAllowedRequestTypes.map(requestType => (
+                    <option key={requestType} value={requestType}>
+                      {requestType}
+                    </option>
+                  ))}
+                </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Fixed to &apos;p&apos; (Pubkeys) for this MVP
+                  Select which POV type the service should resolve.
                 </p>
               </div>
 
