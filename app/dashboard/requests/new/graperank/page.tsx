@@ -122,10 +122,20 @@ export default function GrapeRankRequestPage() {
               'nostr-31873': 'attestor_recommendations',
               'nostr-31871': 'attestations',
             }
+            const fallbackParamsByInterpreterId: Record<string, { actorType: string; subjectType: string }> = {
+              'nostr-3': { actorType: 'pubkey', subjectType: 'p' },
+              'nostr-10000': { actorType: 'pubkey', subjectType: 'p' },
+              'nostr-1984': { actorType: 'pubkey', subjectType: 'p' },
+              'nostr-1-t': { actorType: 'pubkey', subjectType: 't' },
+              'nostr-9735': { actorType: 'P', subjectType: 'p' },
+              'nostr-31873': { actorType: 'pubkey', subjectType: 'p' },
+              'nostr-31871': { actorType: 'pubkey', subjectType: 'p' },
+            }
+            const fallbackParams = fallbackParamsByInterpreterId[int.id] || { actorType: 'p', subjectType: 'p' }
             return {
               type: typeMap[int.id] || int.id,
-              actorType: int.params?.actorType || 'p',
-              subjectType: int.params?.subjectType || 'p',
+              actorType: (typeof int.params?.actorType === 'string' ? int.params.actorType : fallbackParams.actorType),
+              subjectType: (typeof int.params?.subjectType === 'string' ? int.params.subjectType : fallbackParams.subjectType),
               iterate: int.iterate || 1,
               params: {
                 value: int.params?.value ?? 1.0,

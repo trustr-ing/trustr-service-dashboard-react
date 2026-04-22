@@ -25,7 +25,7 @@ const INTERPRETER_TYPES = [
   { value: 'mutes', id: 'nostr-10000', label: 'Mutes (Kind 10000)', actorTypes: ['pubkey', 'p'], subjectTypes: ['p'] },
   { value: 'reports', id: 'nostr-1984', label: 'Reports (Kind 1984)', actorTypes: ['pubkey', 'p'], subjectTypes: ['p', 'e'] },
   { value: 'hashtags', id: 'nostr-1-t', label: 'Hashtags (Kind 1)', actorTypes: ['pubkey'], subjectTypes: ['t'] },
-  { value: 'zaps', id: 'nostr-9735', label: 'Zaps (Kind 9735)', actorTypes: ['P', 'p'], subjectTypes: ['P', 'p', 'e'] },
+  { value: 'zaps', id: 'nostr-9735', label: 'Zaps (Kind 9735)', actorTypes: ['P', 'p', 'e', 'a'], subjectTypes: ['p', 'P'] },
   { value: 'attestor_recommendations', id: 'nostr-31873', label: 'Attestor Recommendations', actorTypes: ['pubkey'], subjectTypes: ['pubkey', 'p', 'd'] },
   { value: 'attestations', id: 'nostr-31871', label: 'Attestations', actorTypes: ['pubkey'], subjectTypes: ['a', 'p'] },
 ]
