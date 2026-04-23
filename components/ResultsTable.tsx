@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { fetchProfiles, getDisplayName, type NostrProfile } from '@/lib/nostr/profiles'
+import { EventCard } from '@/components/EventCard'
 
 interface RankedResult {
   subject: string
@@ -31,6 +32,7 @@ export function ResultsTable({ results, title, description, showProfiles = true 
   const [currentPage, setCurrentPage] = useState(1)
   const resultsPerPage = 20
   const canShowProfiles = showProfiles && results.every(result => result.resultTag === 'p')
+  const canShowEvents = results.length > 0 && results.every(result => result.resultTag === 'e' || result.resultTag === 'a')
 
   const rankBounds = useMemo(() => {
     if (results.length === 0) {
@@ -307,7 +309,18 @@ export function ResultsTable({ results, title, description, showProfiles = true 
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {paginatedResults.map((result, idx) => {
+          {canShowEvents && paginatedResults.map((result) => (
+            <EventCard
+              key={`${result.resultTag}:${result.subject}`}
+              rank={result.rank}
+              resultTag={result.resultTag as 'e' | 'a'}
+              subject={result.subject}
+              score={result.score}
+              povRank={result.povRank}
+              confidence={result.confidence}
+            />
+          ))}
+          {!canShowEvents && paginatedResults.map((result, idx) => {
             const profile = profiles.get(result.subject)
             const displayName = profile ? getDisplayName(profile) : `${result.subject.slice(0, 12)}...`
             const avatarSource = profile?.picture || `https://api.dicebear.com/7.x/identicon/svg?seed=${result.subject}`

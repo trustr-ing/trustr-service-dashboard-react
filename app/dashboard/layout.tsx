@@ -28,6 +28,12 @@ export default async function DashboardLayout({
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <Link
+                href="/dashboard/requests"
+                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+              >
+                All requests
+              </Link>
               <span className="text-sm text-gray-600 dark:text-gray-300">
                 {user.npub.slice(0, 12)}...
               </span>
