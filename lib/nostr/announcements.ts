@@ -28,7 +28,7 @@ export interface ServiceAnnouncement {
   options: ServiceOption[]
   customFields: Record<string, string>
   timestamp: number
-  rawEvent: NDKEvent
+  rawEvent?: NDKEvent
 }
 
 export async function fetchServiceAnnouncements(): Promise<ServiceAnnouncement[]> {

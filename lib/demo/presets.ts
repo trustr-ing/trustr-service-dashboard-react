@@ -55,7 +55,7 @@ export function buildBaselineWotEvent(
     ['config', 'interpreters', JSON.stringify([
       {
         id: 'nostr-3',
-        iterate: 1,
+        iterate: 4,
         params: { actorType: 'pubkey', subjectType: 'p', value: 1.0, confidence: 1.0 },
       },
       {
@@ -101,18 +101,17 @@ export function buildEngagementRankEvent(
   const event = new NDKEvent(ndk)
   event.kind = 37572
   event.content = ''
-  const subjectKindTag = inputs.rankKind === '30023' ? 'a' : 'e'
   event.tags = [
     ['d', `demo_engagement_${Date.now()}`],
     ['p', graperankPubkey],
     ['k', '37573'],
     ['config', 'pov', inputs.semanticNaddr],
-    ['config', 'type', subjectKindTag],
+    ['config', 'type', 'p'],
     ['config', 'interpreters', JSON.stringify([
       {
         id: 'nostr-9735',
         iterate: 1,
-        params: { actorType: 'P', subjectType: 'p', value: inputs.zapWeight, confidence: 1.0 },
+        params: { actorType: 'e', subjectType: 'p', value: inputs.zapWeight, confidence: 1.0 },
       },
     ])],
   ]

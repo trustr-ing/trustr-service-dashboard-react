@@ -25,6 +25,7 @@ export function LatestFeedback({ active, feedbackEvents, isConnected, fallback }
   }
 
   const latest = feedbackEvents.at(-1)
+  const progressValue = latest?.progress ?? null
 
   let text: string
   if (latest) {
@@ -35,10 +36,25 @@ export function LatestFeedback({ active, feedbackEvents, isConnected, fallback }
     text = 'Publishing…'
   }
 
+  const progressWidth = progressValue !== null ? `${progressValue}%` : '18%'
+  const progressLabel = progressValue !== null ? `${progressValue}%` : 'Estimating…'
+
   return (
-    <p className="text-xs text-gray-500 mt-2 min-h-[1rem]">
-      {text} <span className="text-gray-400">· {formatElapsed(elapsedMs)}</span>
-    </p>
+    <div className="mt-2 min-h-[1rem] space-y-1.5">
+      <p className="text-xs text-gray-500">
+        {text} <span className="text-gray-400">· {formatElapsed(elapsedMs)}</span>
+      </p>
+      <div className="h-1.5 w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-700">
+        <div
+          className={progressValue !== null
+            ? 'h-full rounded bg-blue-600 dark:bg-blue-400 transition-[width] duration-500'
+            : 'h-full rounded bg-gray-400 dark:bg-gray-500 animate-pulse'
+          }
+          style={{ width: progressWidth }}
+        />
+      </div>
+      <p className="text-[10px] text-gray-400">{progressLabel}</p>
+    </div>
   )
 }
 

@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth/session'
 import { DashboardShell } from '@/components/layouts/DashboardShell'
 
-export default async function DashboardLayout({
+export default async function DemoLayout({
   children,
 }: {
   children: React.ReactNode

@@ -23,6 +23,7 @@ class ServiceRegistryUnavailableError extends Error {
 
 interface ActiveService {
   serviceId: string
+  name?: string
   pubkey: string
   healthy?: boolean
 }
@@ -89,6 +90,21 @@ export function useServiceAnnouncements(): UseServiceAnnouncementsResult {
     } catch (err) {
       console.error('Failed to fetch service announcements:', err)
 
+      try {
+        const fallbackServices = await fetchActiveServicesWithRetry()
+        const fallbackAnnouncements = buildFallbackAnnouncementsFromServices(fallbackServices)
+
+        if (fallbackAnnouncements.length > 0) {
+          console.warn('Using /api/services fallback for service announcements')
+          setAnnouncements(fallbackAnnouncements)
+          saveToCache(fallbackAnnouncements)
+          setError(null)
+          return
+        }
+      } catch (fallbackErr) {
+        console.error('Failed to load /api/services fallback announcements:', fallbackErr)
+      }
+
       if (err instanceof ServiceRegistryUnavailableError) {
         setError('Service registry is temporarily unavailable. Waiting for /api/services to recover and retrying...')
       } else {
@@ -106,10 +122,10 @@ export function useServiceAnnouncements(): UseServiceAnnouncementsResult {
 
   const filterActiveServices = async (announcements: ServiceAnnouncement[]): Promise<ServiceAnnouncement[]> => {
     const services = await fetchActiveServicesWithRetry()
+    const healthyServices = services.filter(service => service.healthy !== false)
 
     const serviceMap = new Map<string, string>()
-    services
-      .filter(service => service.healthy)
+    healthyServices
       .forEach(service => {
         serviceMap.set(service.serviceId, service.pubkey)
       })
@@ -140,6 +156,11 @@ export function useServiceAnnouncements(): UseServiceAnnouncementsResult {
 
     const result = Array.from(deduped.values())
     console.log('Filtered announcements:', result.length)
+
+    if (result.length === 0 && healthyServices.length > 0) {
+      console.warn('No relay announcements matched active services, using /api/services fallback')
+      return buildFallbackAnnouncementsFromServices(healthyServices)
+    }
 
     return result
   }
@@ -217,6 +238,26 @@ function saveToCache(announcements: ServiceAnnouncement[]): void {
   } catch (err) {
     console.warn('Failed to cache announcements:', err)
   }
+}
+
+function buildFallbackAnnouncementsFromServices(services: ActiveService[]): ServiceAnnouncement[] {
+  const timestamp = Math.floor(Date.now() / 1000)
+
+  return services
+    .filter(service => service.healthy !== false)
+    .map(service => ({
+      id: `fallback:${service.serviceId}:${service.pubkey}`,
+      pubkey: service.pubkey,
+      serviceId: service.serviceId,
+      title: service.name || service.serviceId,
+      summary: 'Discovered via orchestrator service registry',
+      outputKind: 37573,
+      relays: [],
+      configs: [],
+      options: [],
+      customFields: {},
+      timestamp,
+    }))
 }
 
 async function delay(ms: number): Promise<void> {

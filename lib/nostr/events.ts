@@ -104,11 +104,30 @@ export function getFeedbackStatus(event: NDKEvent): string | null {
   return statusTag ? statusTag[1] : null
 }
 
+export function getFeedbackMessage(event: NDKEvent): string {
+  const statusTag = event.tags.find((t) => t[0] === 'status')
+  const statusMessage = statusTag?.[2]?.trim()
+
+  if (statusMessage) return statusMessage
+  return event.content
+}
+
+export function getFeedbackProgress(event: NDKEvent): number | null {
+  const progressTag = event.tags.find((t) => t[0] === 'progress')
+  if (!progressTag?.[1]) return null
+
+  const parsed = parseInt(progressTag[1], 10)
+  if (Number.isNaN(parsed)) return null
+
+  return Math.max(0, Math.min(100, parsed))
+}
+
 export interface ParsedFeedbackEvent {
   id: string
   requestEventId: string | null
   status: string | null
   message: string
+  progress: number | null
   timestamp: number
 }
 
@@ -117,7 +136,8 @@ export function parseFeedbackEvent(event: NDKEvent): ParsedFeedbackEvent {
     id: event.id,
     requestEventId: getRequestEventId(event),
     status: getFeedbackStatus(event),
-    message: event.content,
+    message: getFeedbackMessage(event),
+    progress: getFeedbackProgress(event),
     timestamp: event.created_at || 0,
   }
 }

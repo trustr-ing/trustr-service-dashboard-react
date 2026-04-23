@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { getNDK, getNip07Signer } from '@/lib/nostr/ndk'
+import { NDKRelaySet } from '@nostr-dev-kit/ndk'
+import { connectNDK, getNDK, getNip07Signer } from '@/lib/nostr/ndk'
 import { buildOutputEventNaddr } from '@/lib/nostr/naddr'
 import {
   buildBaselineWotEvent,
@@ -46,6 +47,37 @@ interface ApiSavedRequest {
   completedAt: string | null
 }
 
+const REQUEST_PUBLISH_TIMEOUT_MS = 15_000
+const REQUEST_PUBLISH_MAX_ATTEMPTS = 2
+
+async function publishRequestEvent(event: import('@nostr-dev-kit/ndk').NDKEvent): Promise<void> {
+  const ndk = await connectNDK()
+  const relayUrls = ndk.explicitRelayUrls ?? []
+  const relaySet = relayUrls.length > 0
+    ? NDKRelaySet.fromRelayUrls(relayUrls, ndk, true)
+    : undefined
+
+  let lastError: unknown = null
+
+  for (let attempt = 1; attempt <= REQUEST_PUBLISH_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      await event.publish(relaySet, REQUEST_PUBLISH_TIMEOUT_MS, 1)
+      return
+    } catch (error) {
+      lastError = error
+      if (attempt < REQUEST_PUBLISH_MAX_ATTEMPTS) {
+        await ndk.connect()
+      }
+    }
+  }
+
+  if (lastError instanceof Error) {
+    throw new Error(`Failed to publish request event: ${lastError.message}`)
+  }
+
+  throw new Error('Failed to publish request event')
+}
+
 export interface DemoPipeline {
   userPubkey: string | null
   baseline: StepState
@@ -68,7 +100,7 @@ async function publishAndSave(
   configData: SavedConfigData,
 ): Promise<{ eventId: string; savedRequestId: number }> {
   await event.sign(signer)
-  await event.publish()
+  await publishRequestEvent(event)
 
   const res = await fetch('/api/requests', {
     method: 'POST',
@@ -90,6 +122,27 @@ function parsePresetFromRow(row: ApiSavedRequest): SavedConfigData | null {
     if (parsed && typeof parsed.preset === 'string') return parsed as SavedConfigData
   } catch {}
   return null
+}
+
+function getLatestPresetRequest(rows: ApiSavedRequest[], preset: string): ApiSavedRequest | undefined {
+  return rows.find((row) => parsePresetFromRow(row)?.preset === preset)
+}
+
+function mapSavedRequestToStepState(row: ApiSavedRequest): StepState {
+  const normalizedStatus = row.status.toLowerCase()
+  const isCompleted = normalizedStatus === 'completed' && Boolean(row.firstOutputNaddr)
+
+  return {
+    eventId: row.eventId,
+    savedRequestId: row.id,
+    naddr: isCompleted ? row.firstOutputNaddr : null,
+    status: isCompleted
+      ? 'completed'
+      : normalizedStatus === 'error'
+        ? 'error'
+        : 'running',
+    error: null,
+  }
 }
 
 export function useDemoPipeline(
@@ -123,7 +176,7 @@ export function useDemoPipeline(
     })()
   }, [])
 
-  // Rehydrate from prior completed runs
+  // Rehydrate from prior runs (completed and in-flight)
   useEffect(() => {
     void (async () => {
       try {
@@ -132,47 +185,25 @@ export function useDemoPipeline(
         const data = await res.json()
         const rows: ApiSavedRequest[] = data.requests || []
 
-        const latest = (preset: string): ApiSavedRequest | undefined =>
-          rows.find(r => {
-            if (r.status !== 'completed' || !r.firstOutputNaddr) return false
-            const cfg = parsePresetFromRow(r)
-            return cfg?.preset === preset
-          })
-
-        const base = latest(PRESET_BASELINE)
+        const base = getLatestPresetRequest(rows, PRESET_BASELINE)
         if (base) {
-          setBaseline({
-            eventId: base.eventId,
-            savedRequestId: base.id,
-            naddr: base.firstOutputNaddr,
-            status: 'completed',
-            error: null,
-          })
+          setBaseline(mapSavedRequestToStepState(base))
         }
 
-        const sem = latest(PRESET_SEMANTIC)
+        const sem = getLatestPresetRequest(rows, PRESET_SEMANTIC)
         if (sem) {
           const cfg = parsePresetFromRow(sem)
           const rk = (cfg?.rankKind === '30023' ? '30023' : '1') as RankKind
+          const restoredSemantic = mapSavedRequestToStepState(sem)
           setSemantic({
-            eventId: sem.eventId,
-            savedRequestId: sem.id,
-            naddr: sem.firstOutputNaddr,
-            status: 'completed',
-            error: null,
+            ...restoredSemantic,
             rankKind: rk,
           })
         }
 
-        const eng = latest(PRESET_ENGAGEMENT)
+        const eng = getLatestPresetRequest(rows, PRESET_ENGAGEMENT)
         if (eng) {
-          setEngagement({
-            eventId: eng.eventId,
-            savedRequestId: eng.id,
-            naddr: eng.firstOutputNaddr,
-            status: 'completed',
-            error: null,
-          })
+          setEngagement(mapSavedRequestToStepState(eng))
         }
       } catch (err) {
         console.error('[demo] rehydration failed:', err)
