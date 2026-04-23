@@ -29,6 +29,11 @@ interface StepState {
   error: string | null
 }
 
+interface SemanticStepState extends StepState {
+  rankKind: RankKind
+  context: string
+}
+
 const IDLE_STEP: StepState = {
   eventId: null,
   savedRequestId: null,
@@ -81,7 +86,7 @@ async function publishRequestEvent(event: import('@nostr-dev-kit/ndk').NDKEvent)
 export interface DemoPipeline {
   userPubkey: string | null
   baseline: StepState
-  semantic: StepState & { rankKind: RankKind }
+  semantic: SemanticStepState
   engagement: StepState
   baselineMonitor: ReturnType<typeof useRequestMonitor>
   semanticMonitor: ReturnType<typeof useRequestMonitor>
@@ -152,9 +157,10 @@ export function useDemoPipeline(
   const [userPubkey, setUserPubkey] = useState<string | null>(null)
 
   const [baseline, setBaseline] = useState<StepState>(IDLE_STEP)
-  const [semantic, setSemantic] = useState<StepState & { rankKind: RankKind }>({
+  const [semantic, setSemantic] = useState<SemanticStepState>({
     ...IDLE_STEP,
     rankKind: '1',
+    context: '',
   })
   const [engagement, setEngagement] = useState<StepState>(IDLE_STEP)
 
@@ -194,10 +200,12 @@ export function useDemoPipeline(
         if (sem) {
           const cfg = parsePresetFromRow(sem)
           const rk = (cfg?.rankKind === '30023' ? '30023' : '1') as RankKind
+          const context = typeof cfg?.context === 'string' ? cfg.context : ''
           const restoredSemantic = mapSavedRequestToStepState(sem)
           setSemantic({
             ...restoredSemantic,
             rankKind: rk,
+            context,
           })
         }
 
@@ -215,9 +223,17 @@ export function useDemoPipeline(
   useCompletionWatcher(baseline, baselineMonitor, setBaseline)
   useCompletionWatcher(semantic, semanticMonitor, (updater) => {
     if (typeof updater === 'function') {
-      setSemantic(prev => ({ ...updater(prev), rankKind: prev.rankKind }))
+      setSemantic(prev => ({
+        ...updater(prev),
+        rankKind: prev.rankKind,
+        context: prev.context,
+      }))
     } else {
-      setSemantic(prev => ({ ...updater, rankKind: prev.rankKind }))
+      setSemantic(prev => ({
+        ...updater,
+        rankKind: prev.rankKind,
+        context: prev.context,
+      }))
     }
   })
   useCompletionWatcher(engagement, engagementMonitor, setEngagement)
@@ -256,7 +272,12 @@ export function useDemoPipeline(
   const submitSemantic = useCallback(
     async (context: string, rankKind: RankKind) => {
       if (!semanticPubkey || !baseline.naddr) return
-      setSemantic(prev => ({ ...IDLE_STEP, status: 'publishing', rankKind: prev.rankKind }))
+      setSemantic(prev => ({
+        ...IDLE_STEP,
+        status: 'publishing',
+        rankKind: prev.rankKind,
+        context,
+      }))
       try {
         const signer = await getNip07Signer()
         if (!signer) throw new Error('Nostr signer not available')
@@ -276,15 +297,17 @@ export function useDemoPipeline(
           status: 'running',
           error: null,
           rankKind,
+          context,
         })
       } catch (err) {
         console.error('[demo] semantic submit failed:', err)
-        setSemantic(prev => ({
+        setSemantic({
           ...IDLE_STEP,
           status: 'error',
           error: err instanceof Error ? err.message : 'Submit failed',
-          rankKind: prev.rankKind,
-        }))
+          rankKind,
+          context,
+        })
       }
     },
     [baseline.naddr, semanticPubkey],
@@ -347,8 +370,19 @@ export function useDemoPipeline(
   const cancelBaseline = useCallback(() => cancelStep(baseline, setBaseline), [baseline, cancelStep])
   const cancelSemantic = useCallback(() => {
     cancelStep(semantic, (u) => {
-      if (typeof u === 'function') setSemantic(prev => ({ ...u(prev), rankKind: prev.rankKind }))
-      else setSemantic(prev => ({ ...u, rankKind: prev.rankKind }))
+      if (typeof u === 'function') {
+        setSemantic(prev => ({
+          ...u(prev),
+          rankKind: prev.rankKind,
+          context: prev.context,
+        }))
+      } else {
+        setSemantic(prev => ({
+          ...u,
+          rankKind: prev.rankKind,
+          context: prev.context,
+        }))
+      }
     })
   }, [semantic, cancelStep])
   const cancelEngagement = useCallback(() => cancelStep(engagement, setEngagement), [engagement, cancelStep])

@@ -48,11 +48,14 @@ export function DiscoveryDemoPage() {
 
   const pipeline = useDemoPipeline(graperankPubkey, semanticPubkey)
 
-  const [context, setContext] = useState('')
-  const [rankKind, setRankKind] = useState<RankKind>('1')
+  const [contextOverride, setContextOverride] = useState<string | null>(null)
+  const [rankKindOverride, setRankKindOverride] = useState<RankKind | null>(null)
   const [zapWeight, setZapWeight] = useState(0.5)
   const [reactionWeight, setReactionWeight] = useState(0.5)
   const [replyWeight, setReplyWeight] = useState(0.5)
+
+  const context = contextOverride ?? pipeline.semantic.context
+  const rankKind = rankKindOverride ?? pipeline.semantic.rankKind
 
   const baselineReady = pipeline.baseline.status === 'completed' && !!pipeline.baseline.naddr
   const semanticReady = pipeline.semantic.status === 'completed' && !!pipeline.semantic.naddr
@@ -159,7 +162,7 @@ export function DiscoveryDemoPage() {
             <input
               type="text"
               value={context}
-              onChange={e => setContext(e.target.value)}
+              onChange={e => setContextOverride(e.target.value)}
               placeholder="e.g., nostr relay operators"
               disabled={!baselineReady || semanticActive}
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 disabled:cursor-not-allowed"
@@ -178,7 +181,7 @@ export function DiscoveryDemoPage() {
                   name="rankKind"
                   value="1"
                   checked={rankKind === '1'}
-                  onChange={() => setRankKind('1')}
+                  onChange={() => setRankKindOverride('1')}
                   disabled={!baselineReady || semanticActive}
                 />
                 Notes (kind 1)
@@ -189,7 +192,7 @@ export function DiscoveryDemoPage() {
                   name="rankKind"
                   value="30023"
                   checked={rankKind === '30023'}
-                  onChange={() => setRankKind('30023')}
+                  onChange={() => setRankKindOverride('30023')}
                   disabled={!baselineReady || semanticActive}
                 />
                 Articles (kind 30023)
