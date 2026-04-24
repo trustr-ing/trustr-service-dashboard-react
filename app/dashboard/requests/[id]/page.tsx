@@ -34,6 +34,11 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
     request?.eventId || null
   )
 
+  const hasTerminalSuccess = feedbackEvents.some((feedback) => {
+    const normalizedMessage = feedback.message.toLowerCase()
+    return feedback.status === 'success' && normalizedMessage.includes('completed successfully')
+  })
+
   const updateRequestStatus = useCallback(async (status: string) => {
     if (!requestId) return
     try {
@@ -78,7 +83,7 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
       const data = await response.json()
       setRequest(data.request)
 
-      if (data.request.status === 'pending' && outputEvents.length > 0) {
+      if (data.request.status === 'pending' && outputEvents.length > 0 && hasTerminalSuccess) {
         await updateRequestStatus('completed')
       }
     } catch (error) {
@@ -86,7 +91,7 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
     } finally {
       setLoading(false)
     }
-  }, [requestId, outputEvents.length, router, updateRequestStatus])
+  }, [requestId, outputEvents.length, hasTerminalSuccess, router, updateRequestStatus])
 
   useEffect(() => {
     if (!requestId) return
@@ -94,10 +99,10 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
   }, [requestId, fetchRequest])
 
   useEffect(() => {
-    if (request && request.status === 'pending' && outputEvents.length > 0) {
+    if (request && request.status === 'pending' && outputEvents.length > 0 && hasTerminalSuccess) {
       updateRequestStatus('completed')
     }
-  }, [outputEvents.length, request, updateRequestStatus])
+  }, [outputEvents.length, hasTerminalSuccess, request, updateRequestStatus])
 
   const handleDelete = async () => {
     if (!request || !confirm('Are you sure you want to delete this request? This will publish a NIP-09 deletion event.')) {

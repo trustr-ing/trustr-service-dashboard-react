@@ -82,6 +82,12 @@ export function useRequestSync(userPubkey: string | null) {
         const outputs = outputsByRequest.get(reqEvent.id) || []
         const feedbacks = feedbackByRequest.get(reqEvent.id) || []
         const hasOutputs = outputs.length > 0
+        const hasTerminalSuccess = feedbacks.some((feedback) => {
+          const statusTag = feedback.tags.find((tag) => tag[0] === 'status')
+          const status = statusTag?.[1]
+          const message = (statusTag?.[2] || feedback.content || '').toLowerCase()
+          return status === 'success' && message.includes('completed successfully')
+        })
 
         // Extract config from tags
         const configObj: Record<string, string> = {}
@@ -104,7 +110,7 @@ export function useRequestSync(userPubkey: string | null) {
           eventId: reqEvent.id,
           configData: JSON.stringify(configObj),
           publishedAt: reqEvent.created_at || Math.floor(Date.now() / 1000),
-          status: hasOutputs ? 'completed' : 'pending',
+          status: hasOutputs && hasTerminalSuccess ? 'completed' : 'pending',
           resultEventIds: outputs.map(e => e.id),
           feedbackEventIds: feedbacks.map(e => e.id),
           firstOutputNaddr,

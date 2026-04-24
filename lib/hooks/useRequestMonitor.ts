@@ -36,7 +36,11 @@ export function useRequestMonitor(requestEventId: string | null) {
   }, [])
 
   useEffect(() => {
-    if (!requestEventId) return
+    if (!requestEventId) {
+      seenRef.current.feedbackIds.clear()
+      seenRef.current.outputIds.clear()
+      return
+    }
     const activeRequestEventId = requestEventId
 
     seenRef.current.feedbackIds.clear()
@@ -67,12 +71,16 @@ export function useRequestMonitor(requestEventId: string | null) {
         const outputBatch: ParsedOutputEvent[] = []
         for (const event of historical) {
           if (event.kind === 7000 && !seenRef.current.feedbackIds.has(event.id)) {
+            const feedback = parseFeedbackEvent(event)
+            if (feedback.requestEventId !== activeRequestEventId) continue
             seenRef.current.feedbackIds.add(event.id)
-            feedbackBatch.push(parseFeedbackEvent(event))
+            feedbackBatch.push(feedback)
           }
           if (event.kind === 37573 && !seenRef.current.outputIds.has(event.id)) {
+            const output = parseOutputEvent(event)
+            if (output.requestEventId !== activeRequestEventId) continue
             seenRef.current.outputIds.add(event.id)
-            outputBatch.push(parseOutputEvent(event))
+            outputBatch.push(output)
           }
         }
         if (feedbackBatch.length || outputBatch.length) {
@@ -90,8 +98,9 @@ export function useRequestMonitor(requestEventId: string | null) {
 
           if (event.kind === 7000) {
             if (seenRef.current.feedbackIds.has(event.id)) return
-            seenRef.current.feedbackIds.add(event.id)
             const feedback = parseFeedbackEvent(event)
+            if (feedback.requestEventId !== activeRequestEventId) return
+            seenRef.current.feedbackIds.add(event.id)
             setState((prev) => ({
               ...prev,
               feedbackEvents: [...prev.feedbackEvents, feedback].sort(
@@ -100,8 +109,9 @@ export function useRequestMonitor(requestEventId: string | null) {
             }))
           } else if (event.kind === 37573) {
             if (seenRef.current.outputIds.has(event.id)) return
-            seenRef.current.outputIds.add(event.id)
             const output = parseOutputEvent(event)
+            if (output.requestEventId !== activeRequestEventId) return
+            seenRef.current.outputIds.add(event.id)
             setState((prev) => ({
               ...prev,
               outputEvents: [...prev.outputEvents, output].sort(
@@ -144,5 +154,17 @@ export function useRequestMonitor(requestEventId: string | null) {
     }
   }, [requestEventId, updateState])
 
-  return state
+  const feedbackEvents = requestEventId
+    ? state.feedbackEvents.filter((event) => event.requestEventId === requestEventId)
+    : []
+  const outputEvents = requestEventId
+    ? state.outputEvents.filter((event) => event.requestEventId === requestEventId)
+    : []
+
+  return {
+    ...state,
+    feedbackEvents,
+    outputEvents,
+    isConnected: requestEventId ? state.isConnected : false,
+  }
 }

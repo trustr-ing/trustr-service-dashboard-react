@@ -413,10 +413,15 @@ function useCompletionWatcher(
 ) {
   const outputCount = monitor.outputEvents.length
   const feedbackCount = monitor.feedbackEvents.length
+  const hasTerminalSuccess = monitor.feedbackEvents.some((feedback) => {
+    const normalizedMessage = feedback.message.toLowerCase()
+    return feedback.status === 'success' && normalizedMessage.includes('completed successfully')
+  })
 
-  // Transition to completed on first output
+  // Transition to completed only when terminal success feedback arrives
   useEffect(() => {
     if (step.status !== 'running') return
+    if (!hasTerminalSuccess) return
     if (outputCount === 0) return
 
     const firstOutput = monitor.outputEvents[0]
@@ -451,9 +456,9 @@ function useCompletionWatcher(
       status: 'completed',
       error: null,
     }))
-    // outputCount is the trigger; other deps are stable or read through refs
+    // terminal success + output presence are the trigger
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step.status, outputCount])
+  }, [step.status, outputCount, feedbackCount, hasTerminalSuccess])
 
   // Surface terminal error feedback
   useEffect(() => {
