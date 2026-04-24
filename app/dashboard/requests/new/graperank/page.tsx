@@ -127,7 +127,7 @@ export default function GrapeRankRequestPage() {
               'nostr-10000': { actorType: 'pubkey', subjectType: 'p' },
               'nostr-1984': { actorType: 'pubkey', subjectType: 'p' },
               'nostr-1-t': { actorType: 'pubkey', subjectType: 't' },
-              'nostr-9735': { actorType: 'P', subjectType: 'p' },
+              'nostr-9735': { actorType: 'P', subjectType: 'e' },
               'nostr-31873': { actorType: 'pubkey', subjectType: 'p' },
               'nostr-31871': { actorType: 'pubkey', subjectType: 'p' },
             }

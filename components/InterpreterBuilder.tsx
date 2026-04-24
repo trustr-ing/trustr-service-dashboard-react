@@ -20,15 +20,36 @@ interface InterpreterBuilderProps {
   disabled?: boolean
 }
 
+type InterpreterTypeConfig = {
+  value: string
+  id: string
+  label: string
+  actorTypes: string[]
+  subjectTypes: string[]
+  subjectTypesByActorType?: Record<string, string[]>
+}
+
 const INTERPRETER_TYPES = [
   { value: 'follows', id: 'nostr-3', label: 'Follows (Kind 3)', actorTypes: ['pubkey', 'p'], subjectTypes: ['p'] },
   { value: 'mutes', id: 'nostr-10000', label: 'Mutes (Kind 10000)', actorTypes: ['pubkey', 'p'], subjectTypes: ['p'] },
   { value: 'reports', id: 'nostr-1984', label: 'Reports (Kind 1984)', actorTypes: ['pubkey', 'p'], subjectTypes: ['p', 'e'] },
   { value: 'hashtags', id: 'nostr-1-t', label: 'Hashtags (Kind 1)', actorTypes: ['pubkey'], subjectTypes: ['t'] },
-  { value: 'zaps', id: 'nostr-9735', label: 'Zaps (Kind 9735)', actorTypes: ['P', 'p', 'e', 'a'], subjectTypes: ['p', 'P'] },
+  {
+    value: 'zaps',
+    id: 'nostr-9735',
+    label: 'Zaps (Kind 9735)',
+    actorTypes: ['P', 'p', 'e', 'a'],
+    subjectTypes: ['P', 'p', 'e', 'a'],
+    subjectTypesByActorType: {
+      P: ['P', 'p', 'e', 'a'],
+      p: ['P', 'p'],
+      e: ['P'],
+      a: ['P'],
+    },
+  },
   { value: 'attestor_recommendations', id: 'nostr-31873', label: 'Attestor Recommendations', actorTypes: ['pubkey'], subjectTypes: ['pubkey', 'p', 'd'] },
   { value: 'attestations', id: 'nostr-31871', label: 'Attestations', actorTypes: ['pubkey'], subjectTypes: ['a', 'p'] },
-]
+] as InterpreterTypeConfig[]
 
 export function InterpreterBuilder({ interpreters, onChange, disabled }: InterpreterBuilderProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -67,6 +88,15 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
     updateInterpreter(index, { params: Object.keys(params).length > 0 ? params : undefined })
   }
 
+  const getSubjectTypesForInterpreter = (
+    interpreterType?: InterpreterTypeConfig,
+    actorType?: string,
+  ): string[] => {
+    if (!interpreterType) return []
+    if (!actorType) return interpreterType.subjectTypes
+    return interpreterType.subjectTypesByActorType?.[actorType] || interpreterType.subjectTypes
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -99,6 +129,7 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
         ) : (
           interpreters.map((interpreter, index) => {
             const interpreterType = INTERPRETER_TYPES.find(t => t.value === interpreter.type)
+            const availableSubjectTypes = getSubjectTypesForInterpreter(interpreterType, interpreter.actorType)
             
             return (
               <Card key={index}>
@@ -124,10 +155,12 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
                       value={interpreter.type}
                       onChange={(e) => {
                         const newType = INTERPRETER_TYPES.find(t => t.value === e.target.value)
+                        const nextActorType = newType?.actorTypes[0]
+                        const nextSubjectTypes = getSubjectTypesForInterpreter(newType, nextActorType)
                         updateInterpreter(index, {
                           type: e.target.value,
-                          actorType: newType?.actorTypes[0],
-                          subjectType: newType?.subjectTypes[0]
+                          actorType: nextActorType,
+                          subjectType: nextSubjectTypes[0]
                         })
                       }}
                       disabled={disabled}
@@ -146,7 +179,17 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
                       <label className="block text-xs font-medium mb-1">Actor Type</label>
                       <select
                         value={interpreter.actorType || 'p'}
-                        onChange={(e) => updateInterpreter(index, { actorType: e.target.value })}
+                        onChange={(e) => {
+                          const nextActorType = e.target.value
+                          const nextSubjectTypes = getSubjectTypesForInterpreter(interpreterType, nextActorType)
+                          const nextSubjectType = nextSubjectTypes.includes(interpreter.subjectType || '')
+                            ? interpreter.subjectType
+                            : nextSubjectTypes[0]
+                          updateInterpreter(index, {
+                            actorType: nextActorType,
+                            subjectType: nextSubjectType,
+                          })
+                        }}
                         disabled={disabled}
                         className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5"
                       >
@@ -164,7 +207,7 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
                         disabled={disabled}
                         className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5"
                       >
-                        {interpreterType?.subjectTypes.map(type => (
+                        {availableSubjectTypes.map(type => (
                           <option key={type} value={type}>{type}</option>
                         ))}
                       </select>

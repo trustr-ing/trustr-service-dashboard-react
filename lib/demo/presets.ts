@@ -106,12 +106,12 @@ export function buildEngagementRankEvent(
     ['p', graperankPubkey],
     ['k', '37573'],
     ['config', 'pov', inputs.semanticNaddr],
-    ['config', 'type', 'p'],
+    ['config', 'type', 'pubkey'],
     ['config', 'interpreters', JSON.stringify([
       {
         id: 'nostr-9735',
         iterate: 1,
-        params: { actorType: 'e', subjectType: 'p', value: inputs.zapWeight, confidence: 1.0 },
+        params: { actorType: 'P', subjectType: 'e', value: inputs.zapWeight, confidence: 1.0 },
       },
     ])],
   ]
