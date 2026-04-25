@@ -1,9 +1,45 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { NDKEvent, NDKFilter } from '@nostr-dev-kit/ndk'
+import { NDKEvent, NDKFilter, NDKSubscription } from '@nostr-dev-kit/ndk'
 import { getNDK } from '@/lib/nostr/ndk'
 import { buildOutputEventNaddrFromNdkEvent } from '@/lib/nostr/naddr'
+
+const REQUEST_SYNC_TIMEOUT_MS = 8000
+
+async function collectEventsWithTimeout(filter: NDKFilter, timeoutMs: number): Promise<NDKEvent[]> {
+  const ndk = getNDK()
+  await ndk.connect()
+
+  return new Promise((resolve) => {
+    const eventMap = new Map<string, NDKEvent>()
+    let subscription: NDKSubscription | null = null
+    let finalized = false
+    const timeoutHandle = setTimeout(() => {
+      finalize()
+    }, timeoutMs)
+
+    const finalize = () => {
+      if (finalized) return
+      finalized = true
+      clearTimeout(timeoutHandle)
+      if (subscription) {
+        subscription.stop()
+      }
+      resolve(Array.from(eventMap.values()))
+    }
+
+    subscription = ndk.subscribe(filter, { closeOnEose: true })
+
+    subscription.on('event', (event: NDKEvent) => {
+      eventMap.set(event.id, event)
+    })
+
+    subscription.on('eose', () => {
+      finalize()
+    })
+  })
+}
 
 interface SyncResult {
   imported: number
@@ -30,17 +66,13 @@ export function useRequestSync(userPubkey: string | null) {
     setState(prev => ({ ...prev, syncing: true, error: null }))
 
     try {
-      const ndk = getNDK()
-      await ndk.connect()
-
       // 1. Fetch all kind 37572 request events authored by this user
       const requestFilter: NDKFilter = {
         kinds: [37572 as number],
         authors: [userPubkey],
       }
 
-      const requestEvents = await ndk.fetchEvents(requestFilter)
-      const requestEventsArray = Array.from(requestEvents)
+      const requestEventsArray = await collectEventsWithTimeout(requestFilter, REQUEST_SYNC_TIMEOUT_MS)
 
       if (requestEventsArray.length === 0) {
         setState(prev => ({ ...prev, syncing: false, lastSyncResult: { imported: 0, updated: 0, skipped: 0 } }))
@@ -55,8 +87,7 @@ export function useRequestSync(userPubkey: string | null) {
         '#e': requestEventIds,
       }
 
-      const responseEvents = await ndk.fetchEvents(responseFilter)
-      const responseEventsArray = Array.from(responseEvents)
+      const responseEventsArray = await collectEventsWithTimeout(responseFilter, REQUEST_SYNC_TIMEOUT_MS)
 
       // Group output and feedback events by request event ID
       const outputsByRequest = new Map<string, NDKEvent[]>()

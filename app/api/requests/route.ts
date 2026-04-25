@@ -14,7 +14,6 @@ export async function GET() {
     const requests = await db.query.savedRequests.findMany({
       where: eq(savedRequests.userId, user.id),
       orderBy: [desc(savedRequests.publishedAt)],
-      limit: 50,
     })
 
     return NextResponse.json({ requests })

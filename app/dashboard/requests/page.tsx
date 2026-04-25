@@ -21,16 +21,22 @@ interface SavedRequest {
   feedbackEventIds: string
 }
 
+interface AuthMeResponse {
+  user?: {
+    pubkey?: string
+  }
+}
+
 export default function RequestsPage() {
   const [requests, setRequests] = useState<SavedRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [userPubkey, setUserPubkey] = useState<string | null>(null)
-  const { syncing, lastSyncResult, syncFromRelays } = useRequestSync(userPubkey)
+  const { syncing, lastSyncResult, syncFromRelays, error: syncError } = useRequestSync(userPubkey)
 
   const fetchRequests = useCallback(async () => {
     try {
-      const response = await fetch('/api/requests')
+      const response = await fetch('/api/requests', { cache: 'no-store' })
       const data = await response.json()
       setRequests(data.requests || [])
     } catch (error) {
@@ -41,8 +47,26 @@ export default function RequestsPage() {
   }, [])
 
   useEffect(() => {
-    async function initAndSync() {
-      // Get user pubkey for relay sync
+    fetchRequests()
+  }, [fetchRequests])
+
+  useEffect(() => {
+    async function resolveUserPubkey() {
+      // Prefer authenticated dashboard user pubkey for relay sync
+      try {
+        const meResponse = await fetch('/api/auth/me', { cache: 'no-store' })
+        if (meResponse.ok) {
+          const meData: AuthMeResponse = await meResponse.json()
+          const sessionPubkey = meData.user?.pubkey
+          if (sessionPubkey) {
+            setUserPubkey(sessionPubkey)
+            return
+          }
+        }
+      } catch {
+        // Fallback to NIP-07 if session lookup fails
+      }
+
       try {
         const signer = await getNip07Signer()
         if (signer) {
@@ -52,13 +76,12 @@ export default function RequestsPage() {
           }
         }
       } catch {
-        // NIP-07 not available, skip relay sync
+        // NIP-07 not available; continue with local DB only
       }
-      // Always fetch local DB requests first
-      await fetchRequests()
     }
-    initAndSync()
-  }, [fetchRequests])
+
+    resolveUserPubkey()
+  }, [])
 
   // Trigger relay sync once we have the user pubkey
   useEffect(() => {
@@ -70,6 +93,14 @@ export default function RequestsPage() {
       }
     })
   }, [userPubkey, syncFromRelays, fetchRequests])
+
+  const handleManualSync = useCallback(async () => {
+    if (!userPubkey || syncing) return
+    const result = await syncFromRelays()
+    if (result) {
+      await fetchRequests()
+    }
+  }, [userPubkey, syncing, syncFromRelays, fetchRequests])
 
   const getStatusBadge = (status: string) => {
     const colors = {
@@ -122,11 +153,17 @@ export default function RequestsPage() {
           {syncing && (
             <span className="text-xs text-gray-400 animate-pulse">Syncing from relays...</span>
           )}
+          {syncError && !syncing && (
+            <span className="text-xs text-red-500">Relay sync issue: {syncError}</span>
+          )}
           {!syncing && lastSyncResult && (lastSyncResult.imported > 0 || lastSyncResult.updated > 0) && (
             <span className="text-xs text-green-500">
               Synced {lastSyncResult.imported > 0 ? `${lastSyncResult.imported} new` : ''}{lastSyncResult.imported > 0 && lastSyncResult.updated > 0 ? ', ' : ''}{lastSyncResult.updated > 0 ? `${lastSyncResult.updated} updated` : ''}
             </span>
           )}
+          <Button variant="outline" onClick={handleManualSync} disabled={!userPubkey || syncing}>
+            Sync from Relays
+          </Button>
           <Link href="/dashboard/requests/new">
             <Button>New Request</Button>
           </Link>
