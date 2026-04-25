@@ -64,33 +64,6 @@ export function useRequestMonitor(requestEventId: string | null) {
           '#e': [activeRequestEventId],
         }
 
-        // Backfill existing events in case we missed any while disconnected
-        const historical = await ndk.fetchEvents(filter)
-        if (!mounted) return
-        const feedbackBatch: ParsedFeedbackEvent[] = []
-        const outputBatch: ParsedOutputEvent[] = []
-        for (const event of historical) {
-          if (event.kind === 7000 && !seenRef.current.feedbackIds.has(event.id)) {
-            const feedback = parseFeedbackEvent(event)
-            if (feedback.requestEventId !== activeRequestEventId) continue
-            seenRef.current.feedbackIds.add(event.id)
-            feedbackBatch.push(feedback)
-          }
-          if (event.kind === 37573 && !seenRef.current.outputIds.has(event.id)) {
-            const output = parseOutputEvent(event)
-            if (output.requestEventId !== activeRequestEventId) continue
-            seenRef.current.outputIds.add(event.id)
-            outputBatch.push(output)
-          }
-        }
-        if (feedbackBatch.length || outputBatch.length) {
-          setState(prev => ({
-            ...prev,
-            feedbackEvents: [...prev.feedbackEvents, ...feedbackBatch].sort((a, b) => a.timestamp - b.timestamp),
-            outputEvents: [...prev.outputEvents, ...outputBatch].sort((a, b) => a.timestamp - b.timestamp),
-          }))
-        }
-
         subscription = ndk.subscribe(filter, { closeOnEose: false })
 
         subscription.on('event', (event: NDKEvent) => {
