@@ -47,16 +47,19 @@ export async function POST(request: NextRequest) {
       if (existing) {
         // Update if we have new output data the local DB doesn't have
         const existingResultIds = JSON.parse(existing.resultEventIds || '[]')
+        const existingFeedbackIds = JSON.parse(existing.feedbackEventIds || '[]')
         const hasNewResults = event.resultEventIds.length > existingResultIds.length
+        // Keep feedback history in sync even when outputs/status are unchanged.
+        const hasNewFeedback = event.feedbackEventIds.length > existingFeedbackIds.length
         const needsStatusUpdate = existing.status === 'pending' && event.status === 'completed'
         const needsNaddrUpdate = !existing.firstOutputNaddr && event.firstOutputNaddr
 
-        if (hasNewResults || needsStatusUpdate || needsNaddrUpdate) {
+        if (hasNewResults || hasNewFeedback || needsStatusUpdate || needsNaddrUpdate) {
           const updateData: Record<string, unknown> = {}
           if (hasNewResults) {
             updateData.resultEventIds = JSON.stringify(event.resultEventIds)
           }
-          if (event.feedbackEventIds.length > 0) {
+          if (hasNewFeedback) {
             updateData.feedbackEventIds = JSON.stringify(event.feedbackEventIds)
           }
           if (needsStatusUpdate) {
