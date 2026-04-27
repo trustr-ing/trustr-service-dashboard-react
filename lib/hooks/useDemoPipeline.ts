@@ -6,6 +6,7 @@ import { connectNDK, getNDK, getNip07Signer } from '@/lib/nostr/ndk'
 import { buildOutputEventNaddr } from '@/lib/nostr/naddr'
 import { isTerminalSuccessFeedback } from '@/lib/nostr/events'
 import {
+  assertValidDemoRequestShape,
   buildBaselineWotEvent,
   buildEngagementRankEvent,
   buildSemanticSearchEvent,
@@ -105,6 +106,9 @@ async function publishAndSave(
   signer: import('@nostr-dev-kit/ndk').NDKNip07Signer,
   configData: SavedConfigData,
 ): Promise<{ eventId: string; savedRequestId: number }> {
+  // Enforce demo request guardrails before signing or sending malformed events.
+  assertValidDemoRequestShape(event)
+
   await event.sign(signer)
   await publishRequestEvent(event)
 

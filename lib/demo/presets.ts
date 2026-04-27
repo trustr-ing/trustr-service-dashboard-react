@@ -34,6 +34,73 @@ export interface SavedConfigData {
   [key: string]: unknown
 }
 
+type DemoInterpreterParams = {
+  actorType?: string
+  subjectType?: string
+}
+
+type DemoInterpreterRequest = {
+  id?: string
+  params?: DemoInterpreterParams
+}
+
+const PUBKEY_LIKE_OUTPUT_TYPES = new Set(['pubkey', 'p', 'P'])
+const EVENT_REFERENCE_SUBJECT_TYPES = new Set(['e', 'a', 'id'])
+
+function getConfigTagValue(event: NDKEvent, key: string): string | undefined {
+  return event.tags.find((tag) => tag[0] === 'config' && tag[1] === key)?.[2]
+}
+
+function parseInterpreterConfig(event: NDKEvent): {
+  interpreters?: DemoInterpreterRequest[]
+  parseError?: string
+} {
+  const interpretersRaw = getConfigTagValue(event, 'interpreters')
+  if (!interpretersRaw) return {}
+
+  try {
+    const parsed = JSON.parse(interpretersRaw)
+    if (!Array.isArray(parsed)) {
+      return { parseError: 'config:interpreters must be a JSON array' }
+    }
+    return { interpreters: parsed as DemoInterpreterRequest[] }
+  } catch {
+    return { parseError: 'config:interpreters must be valid JSON' }
+  }
+}
+
+export function validateDemoRequestShape(event: NDKEvent): string | null {
+  // Demo guardrail: pubkey-like outputs can only accept event-reference
+  // subjects through the known zap sender -> resolved actor path.
+  const outputType = getConfigTagValue(event, 'type')
+  if (!outputType) return 'Missing required config:type on demo request event'
+  if (!PUBKEY_LIKE_OUTPUT_TYPES.has(outputType)) return null
+
+  const { interpreters, parseError } = parseInterpreterConfig(event)
+  if (parseError) return parseError
+  if (!interpreters || interpreters.length === 0) return null
+
+  for (const interpreter of interpreters) {
+    const subjectType = interpreter.params?.subjectType
+    if (!subjectType || !EVENT_REFERENCE_SUBJECT_TYPES.has(subjectType)) continue
+
+    const actorType = interpreter.params?.actorType
+    if (actorType === 'P') continue
+
+    const interpreterLabel = interpreter.id || 'unknown interpreter'
+    return `Invalid demo request shape for ${interpreterLabel}: config:type=${outputType} with subjectType=${subjectType} requires actorType='P'`
+  }
+
+  return null
+}
+
+export function assertValidDemoRequestShape(event: NDKEvent): void {
+  const validationError = validateDemoRequestShape(event)
+  if (validationError) {
+    throw new Error(validationError)
+  }
+}
+
 export function buildBaselineWotEvent(
   ndk: NDK,
   graperankPubkey: string,
