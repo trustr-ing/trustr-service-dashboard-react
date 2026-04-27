@@ -95,8 +95,36 @@ export function isOutputEvent(event: NDKEvent): boolean {
 }
 
 export function getRequestEventId(event: NDKEvent): string | null {
-  const eTag = event.tags.find((t) => t[0] === 'e' && t[3] === 'request')
-  return eTag ? eTag[1] : null
+  // Prefer explicit request markers, but gracefully handle outputs/feedback that
+  // include unmarked or differently-marked e-tags.
+  const eTags = event.tags.filter((tag) => tag[0] === 'e' && Boolean(tag[1]))
+  if (eTags.length === 0) return null
+
+  const requestTaggedReference = eTags.find((tag) => tag[3] === 'request')?.[1]
+  if (requestTaggedReference) return requestTaggedReference
+
+  const unmarkedReference = eTags.find((tag) => !tag[3])?.[1]
+  if (unmarkedReference) return unmarkedReference
+
+  return eTags[0]?.[1] || null
+}
+
+export function isTerminalSuccessFeedback(
+  status: string | null | undefined,
+  message: string | null | undefined,
+): boolean {
+  // Require explicit success status first, then allow common terminal wording
+  // variants emitted by different service implementations.
+  if ((status ?? '').toLowerCase() !== 'success') return false
+
+  const normalizedMessage = (message ?? '').toLowerCase()
+  if (!normalizedMessage) return true
+
+  return (
+    normalizedMessage.includes('complete') ||
+    normalizedMessage.includes('finished') ||
+    normalizedMessage.includes('done')
+  )
 }
 
 export function getFeedbackStatus(event: NDKEvent): string | null {

@@ -72,22 +72,40 @@ export function useRequestMonitor(requestEventId: string | null) {
           if (event.kind === 7000) {
             if (seenRef.current.feedbackIds.has(event.id)) return
             const feedback = parseFeedbackEvent(event)
-            if (feedback.requestEventId !== activeRequestEventId) return
+            // Accept feedback when any e-tag explicitly references the active request,
+            // even if the parser selected a different e-tag as the request id.
+            const hasActiveRequestReference = event.tags.some(
+              (tag) => tag[0] === 'e' && tag[1] === activeRequestEventId
+            )
+            if (feedback.requestEventId !== activeRequestEventId && !hasActiveRequestReference) return
             seenRef.current.feedbackIds.add(event.id)
+            // Normalize the stored request id so downstream consumers can reliably filter
+            // by the active request without re-checking raw tags.
+            const normalizedFeedback = feedback.requestEventId === activeRequestEventId
+              ? feedback
+              : { ...feedback, requestEventId: activeRequestEventId }
             setState((prev) => ({
               ...prev,
-              feedbackEvents: [...prev.feedbackEvents, feedback].sort(
+              feedbackEvents: [...prev.feedbackEvents, normalizedFeedback].sort(
                 (a, b) => a.timestamp - b.timestamp
               ),
             }))
           } else if (event.kind === 37573) {
             if (seenRef.current.outputIds.has(event.id)) return
             const output = parseOutputEvent(event)
-            if (output.requestEventId !== activeRequestEventId) return
+            // Apply the same fallback rule for output events to prevent false negatives
+            // when services emit multiple e-tags with different markers.
+            const hasActiveRequestReference = event.tags.some(
+              (tag) => tag[0] === 'e' && tag[1] === activeRequestEventId
+            )
+            if (output.requestEventId !== activeRequestEventId && !hasActiveRequestReference) return
             seenRef.current.outputIds.add(event.id)
+            const normalizedOutput = output.requestEventId === activeRequestEventId
+              ? output
+              : { ...output, requestEventId: activeRequestEventId }
             setState((prev) => ({
               ...prev,
-              outputEvents: [...prev.outputEvents, output].sort(
+              outputEvents: [...prev.outputEvents, normalizedOutput].sort(
                 (a, b) => a.timestamp - b.timestamp
               ),
             }))

@@ -9,6 +9,7 @@ import { useRequestMonitor } from '@/lib/hooks/useRequestMonitor'
 import { ResultsTable, parseOutputEventResults } from '@/components/ResultsTable'
 import { deleteEvent } from '@/lib/nostr/deletion'
 import { buildOutputEventNaddr } from '@/lib/nostr/naddr'
+import { isTerminalSuccessFeedback } from '@/lib/nostr/events'
 import Link from 'next/link'
 
 interface SavedRequest {
@@ -34,10 +35,11 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
     request?.eventId || null
   )
 
-  const hasTerminalSuccess = feedbackEvents.some((feedback) => {
-    const normalizedMessage = feedback.message.toLowerCase()
-    return feedback.status === 'success' && normalizedMessage.includes('completed successfully')
-  })
+  // Share the same terminal-success semantics used across demo and sync flows
+  // so request status promotion does not depend on exact feedback wording.
+  const hasTerminalSuccess = feedbackEvents.some((feedback) =>
+    isTerminalSuccessFeedback(feedback.status, feedback.message)
+  )
 
   const updateRequestStatus = useCallback(async (status: string) => {
     if (!requestId) return

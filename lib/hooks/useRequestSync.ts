@@ -4,6 +4,12 @@ import { useState, useCallback } from 'react'
 import { NDKEvent, NDKFilter, NDKSubscription } from '@nostr-dev-kit/ndk'
 import { getNDK } from '@/lib/nostr/ndk'
 import { buildOutputEventNaddrFromNdkEvent } from '@/lib/nostr/naddr'
+import {
+  getFeedbackMessage,
+  getFeedbackStatus,
+  getRequestEventId,
+  isTerminalSuccessFeedback,
+} from '@/lib/nostr/events'
 
 const REQUEST_SYNC_TIMEOUT_MS = 8000
 
@@ -94,7 +100,9 @@ export function useRequestSync(userPubkey: string | null) {
       const feedbackByRequest = new Map<string, NDKEvent[]>()
 
       for (const event of responseEventsArray) {
-        const requestRef = event.tags.find(t => t[0] === 'e')?.[1]
+        // Reuse shared request-id parsing so sync behavior matches live monitor
+        // semantics for multi-e-tag output/feedback events.
+        const requestRef = getRequestEventId(event)
         if (!requestRef) continue
 
         if (event.kind === 37573) {
@@ -113,12 +121,11 @@ export function useRequestSync(userPubkey: string | null) {
         const outputs = outputsByRequest.get(reqEvent.id) || []
         const feedbacks = feedbackByRequest.get(reqEvent.id) || []
         const hasOutputs = outputs.length > 0
-        const hasTerminalSuccess = feedbacks.some((feedback) => {
-          const statusTag = feedback.tags.find((tag) => tag[0] === 'status')
-          const status = statusTag?.[1]
-          const message = (statusTag?.[2] || feedback.content || '').toLowerCase()
-          return status === 'success' && message.includes('completed successfully')
-        })
+        // Status-only success is insufficient; require a terminal success signal
+        // recognized by the shared parser plus at least one output event.
+        const hasTerminalSuccess = feedbacks.some((feedback) =>
+          isTerminalSuccessFeedback(getFeedbackStatus(feedback), getFeedbackMessage(feedback))
+        )
 
         // Extract config from tags
         const configObj: Record<string, string> = {}

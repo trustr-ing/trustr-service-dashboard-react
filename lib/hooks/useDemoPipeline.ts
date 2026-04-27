@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { NDKRelaySet } from '@nostr-dev-kit/ndk'
 import { connectNDK, getNDK, getNip07Signer } from '@/lib/nostr/ndk'
 import { buildOutputEventNaddr } from '@/lib/nostr/naddr'
+import { isTerminalSuccessFeedback } from '@/lib/nostr/events'
 import {
   buildBaselineWotEvent,
   buildEngagementRankEvent,
@@ -413,10 +414,11 @@ function useCompletionWatcher(
 ) {
   const outputCount = monitor.outputEvents.length
   const feedbackCount = monitor.feedbackEvents.length
-  const hasTerminalSuccess = monitor.feedbackEvents.some((feedback) => {
-    const normalizedMessage = feedback.message.toLowerCase()
-    return feedback.status === 'success' && normalizedMessage.includes('completed successfully')
-  })
+  // Use shared terminal-success detection so wording differences like
+  // "Calculation completed..." still unblock completion transitions.
+  const hasTerminalSuccess = monitor.feedbackEvents.some((feedback) =>
+    isTerminalSuccessFeedback(feedback.status, feedback.message)
+  )
 
   // Transition to completed only when terminal success feedback arrives
   useEffect(() => {
