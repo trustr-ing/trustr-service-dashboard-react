@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { savedRequests } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { and, eq, desc } from 'drizzle-orm'
 import { getCurrentUser } from '@/lib/auth/session'
 
 export async function GET() {
@@ -37,16 +37,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing eventId' }, { status: 400 })
     }
 
+    const serializedConfigData = configData ? JSON.stringify(configData) : '{}'
+
     const [savedRequest] = await db
       .insert(savedRequests)
       .values({
         userId: user.id,
         eventId,
         templateId: templateId || null,
-        configData: configData ? JSON.stringify(configData) : '{}',
+        configData: serializedConfigData,
         status: 'pending',
       })
+      // Request events can be discovered by sync immediately after publish,
+      // so duplicate writes by eventId should be treated as idempotent.
+      .onConflictDoNothing({ target: savedRequests.eventId })
       .returning()
+
+    if (!savedRequest) {
+      const [existingSavedRequest] = await db.query.savedRequests.findMany({
+        where: and(
+          eq(savedRequests.eventId, eventId),
+          eq(savedRequests.userId, user.id),
+        ),
+        limit: 1,
+      })
+
+      if (existingSavedRequest) {
+        return NextResponse.json({ savedRequest: existingSavedRequest })
+      }
+
+      return NextResponse.json({ error: 'Request already exists' }, { status: 409 })
+    }
 
     return NextResponse.json({ savedRequest })
   } catch (error) {
