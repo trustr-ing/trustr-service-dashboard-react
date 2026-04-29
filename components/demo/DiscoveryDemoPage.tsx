@@ -51,6 +51,7 @@ export function DiscoveryDemoPage() {
   const [contextOverride, setContextOverride] = useState<string | null>(null)
   const [rankKindOverride, setRankKindOverride] = useState<RankKind | null>(null)
   const [zapWeight, setZapWeight] = useState(0.5)
+  const [fatZapWeight, setFatZapWeight] = useState(0.5)
   const [reactionWeight, setReactionWeight] = useState(0.5)
   const [replyWeight, setReplyWeight] = useState(0.5)
 
@@ -253,6 +254,12 @@ export function DiscoveryDemoPage() {
             onChange={setZapWeight}
             disabled={!semanticReady || engagementActive}
           />
+          <WeightSlider
+            label="Fat Zaps over 10k sats"
+            value={fatZapWeight}
+            onChange={setFatZapWeight}
+            disabled={!semanticReady || engagementActive}
+          />
           <div className="opacity-50 space-y-4 border-l-2 border-gray-200 dark:border-gray-700 pl-3">
             <WeightSlider label="Reactions" value={reactionWeight} onChange={setReactionWeight} disabled />
             <WeightSlider label="Replies" value={replyWeight} onChange={setReplyWeight} disabled />
@@ -265,7 +272,7 @@ export function DiscoveryDemoPage() {
             <div className="flex gap-2">
               <Button
                 type="button"
-                onClick={() => void pipeline.submitEngagement({ zap: zapWeight })}
+                onClick={() => void pipeline.submitEngagement({ zap: zapWeight, fatZap: fatZapWeight })}
                 disabled={!canSubmitEngagement}
               >
                 {engagementActive ? 'Ranking…' : 'Rank authors'}

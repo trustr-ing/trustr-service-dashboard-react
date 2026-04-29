@@ -27,6 +27,7 @@ export interface EngagementInputs {
   semanticNaddr: string
   rankKind: RankKind
   zapWeight: number
+  fatZapWeight: number
 }
 
 export interface SavedConfigData {
@@ -45,7 +46,22 @@ type DemoInterpreterRequest = {
 }
 
 const PUBKEY_LIKE_OUTPUT_TYPES = new Set(['pubkey', 'p', 'P'])
-const EVENT_REFERENCE_SUBJECT_TYPES = new Set(['e', 'a', 'id'])
+const ZAP_INTERPRETER_ID = 'nostr-9735'
+const FAT_ZAP_THRESHOLD_MSATS = 10_000_000
+const SUPPORTED_ZAP_DIRECTIONAL_PAIRS = new Set([
+  'e->pubkey',
+  'pubkey->e',
+  'p->pubkey',
+  'pubkey->p',
+])
+
+function getZapDirectionalPair(actorType?: string, subjectType?: string): string {
+  return `${actorType || 'undefined'}->${subjectType || 'undefined'}`
+}
+
+function isSupportedZapDirectionalPair(actorType?: string, subjectType?: string): boolean {
+  return SUPPORTED_ZAP_DIRECTIONAL_PAIRS.has(getZapDirectionalPair(actorType, subjectType))
+}
 
 function getConfigTagValue(event: NDKEvent, key: string): string | undefined {
   return event.tags.find((tag) => tag[0] === 'config' && tag[1] === key)?.[2]
@@ -70,8 +86,6 @@ function parseInterpreterConfig(event: NDKEvent): {
 }
 
 export function validateDemoRequestShape(event: NDKEvent): string | null {
-  // Demo guardrail: pubkey-like outputs can only accept event-reference
-  // subjects through the known zap sender -> resolved actor path.
   const outputType = getConfigTagValue(event, 'type')
   if (!outputType) return 'Missing required config:type on demo request event'
   if (!PUBKEY_LIKE_OUTPUT_TYPES.has(outputType)) return null
@@ -81,14 +95,13 @@ export function validateDemoRequestShape(event: NDKEvent): string | null {
   if (!interpreters || interpreters.length === 0) return null
 
   for (const interpreter of interpreters) {
-    const subjectType = interpreter.params?.subjectType
-    if (!subjectType || !EVENT_REFERENCE_SUBJECT_TYPES.has(subjectType)) continue
-
     const actorType = interpreter.params?.actorType
-    if (actorType === 'P') continue
+    const subjectType = interpreter.params?.subjectType
 
-    const interpreterLabel = interpreter.id || 'unknown interpreter'
-    return `Invalid demo request shape for ${interpreterLabel}: config:type=${outputType} with subjectType=${subjectType} requires actorType='P'`
+    if (interpreter.id !== ZAP_INTERPRETER_ID) continue
+    if (isSupportedZapDirectionalPair(actorType, subjectType)) continue
+
+    return `Invalid demo request shape for ${ZAP_INTERPRETER_ID}: actorType/subjectType must be one of e->pubkey, pubkey->e, p->pubkey, pubkey->p`
   }
 
   return null
@@ -178,7 +191,13 @@ export function buildEngagementRankEvent(
       {
         id: 'nostr-9735',
         iterate: 1,
-        params: { actorType: 'P', subjectType: 'e', value: inputs.zapWeight, confidence: 1.0 },
+        params: {
+          actorType: 'e',
+          subjectType: 'pubkey',
+          value: inputs.zapWeight,
+          confidence: 1.0,
+          [`>${FAT_ZAP_THRESHOLD_MSATS}`]: inputs.fatZapWeight,
+        },
       },
     ])],
   ]
@@ -205,6 +224,7 @@ export function engagementConfigForDb(inputs: EngagementInputs): SavedConfigData
     rankKind: inputs.rankKind,
     weights: {
       zaps: inputs.zapWeight,
+      fatZaps: inputs.fatZapWeight,
     },
   }
 }

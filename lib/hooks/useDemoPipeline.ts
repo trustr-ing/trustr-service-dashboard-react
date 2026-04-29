@@ -95,7 +95,7 @@ export interface DemoPipeline {
   engagementMonitor: ReturnType<typeof useRequestMonitor>
   submitBaseline: () => Promise<void>
   submitSemantic: (context: string, rankKind: RankKind) => Promise<void>
-  submitEngagement: (weights: { zap: number }) => Promise<void>
+  submitEngagement: (weights: { zap: number; fatZap: number }) => Promise<void>
   cancelBaseline: () => void
   cancelSemantic: () => void
   cancelEngagement: () => void
@@ -319,7 +319,7 @@ export function useDemoPipeline(
   )
 
   const submitEngagement = useCallback(
-    async (weights: { zap: number }) => {
+    async (weights: { zap: number; fatZap: number }) => {
       if (!graperankPubkey || !semantic.naddr) return
       setEngagement({ ...IDLE_STEP, status: 'publishing' })
       try {
@@ -331,6 +331,7 @@ export function useDemoPipeline(
           semanticNaddr: semantic.naddr,
           rankKind: semantic.rankKind,
           zapWeight: weights.zap,
+          fatZapWeight: weights.fatZap,
         }
         const event = buildEngagementRankEvent(ndk, graperankPubkey, inputs)
         const { eventId, savedRequestId } = await publishAndSave(
