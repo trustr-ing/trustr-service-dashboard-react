@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -24 148 148">
+  <g transform="translate(50 50) rotate(45) scale(1 0.85) rotate(-45) translate(-50 -50)">
+    <circle cx="48" cy="52" r="52" fill="#000000"/>
+    <circle cx="50" cy="50" r="48" fill="#6d28d9"/>
+    <circle cx="50" cy="50" r="33" fill="#d1d5db"/>
+    <circle cx="50" cy="50" r="24" fill="#6d28d9"/>
+    <circle cx="50" cy="50" r="9" fill="#d1d5db"/>
+  </g>
+  <polygon points="44,10 44,32 50,32 50,50 64,26 56,26 64,10"
+    fill="#facc15" stroke="#000000" stroke-width="2" stroke-linejoin="round"
+    transform="rotate(45 50 50) translate(50 50) scale(1.5) translate(-50 -50)"/>
+</svg>

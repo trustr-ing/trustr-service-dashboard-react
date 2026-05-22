@@ -89,7 +89,7 @@
   .page-title { @apply text-3xl font-bold tracking-tight; }
   .text-strong { @apply text-sm font-medium text-gray-900 dark:text-gray-100; }
   .label-strong { @apply font-medium text-gray-700 dark:text-gray-300; }
-  .text-muted { @apply text-gray-600 dark:text-gray-400; }
+  .text-muted { @apply text-gray-600 dark:text-gray-300; }
   .text-subtle { @apply text-xs text-gray-500 dark:text-gray-400; }
   .text-empty { @apply text-gray-400 italic; }
 

@@ -13,9 +13,11 @@ export function DashboardShell({ userNpub, children }: DashboardShellProps) {
           <div className="flex h-16 justify-between">
             <div className="flex">
               <div className="flex flex-shrink-0 items-center">
-                <Link href="/dashboard">
+                <Link href="/dashboard" className="flex items-center gap-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- tiny SVG; next/image adds no value */}
+                  <img src="/icon.svg" alt="" aria-hidden="true" className="h-12 w-12" />
                   <h1 className="text-xl font-bold cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                    Trustr Dashboard
+                    TrustR.ing
                   </h1>
                 </Link>
               </div>

@@ -6,7 +6,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div>
         <h2 className="page-title">Dashboard</h2>
-        <p className="text-muted">
+        <p>
           Manage your Trustr service requests
         </p>
       </div>
