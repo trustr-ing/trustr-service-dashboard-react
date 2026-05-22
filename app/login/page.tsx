@@ -74,7 +74,7 @@ export default function LoginPage() {
           </Button>
 
           {error && (
-            <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
+            <div className="alert-error">
               <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
             </div>
           )}
@@ -85,7 +85,7 @@ export default function LoginPage() {
               href="https://getalby.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:underline dark:text-blue-400"
+              className="link"
             >
               Get Alby
             </a>
@@ -94,7 +94,7 @@ export default function LoginPage() {
               href="https://github.com/fiatjaf/nos2x"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:underline dark:text-blue-400"
+              className="link"
             >
               nos2x
             </a>

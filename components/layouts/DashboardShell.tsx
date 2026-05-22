@@ -9,7 +9,7 @@ export function DashboardShell({ userNpub, children }: DashboardShellProps) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <nav className="border-b bg-white dark:bg-gray-800">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="page-shell">
           <div className="flex h-16 justify-between">
             <div className="flex">
               <div className="flex flex-shrink-0 items-center">
@@ -23,7 +23,7 @@ export function DashboardShell({ userNpub, children }: DashboardShellProps) {
             <div className="flex items-center space-x-4">
               <Link
                 href="/dashboard/requests"
-                className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                className="nav-link"
               >
                 All requests
               </Link>
@@ -33,7 +33,7 @@ export function DashboardShell({ userNpub, children }: DashboardShellProps) {
               <form action="/api/auth/logout" method="POST">
                 <button
                   type="submit"
-                  className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                  className="nav-link"
                 >
                   Logout
                 </button>

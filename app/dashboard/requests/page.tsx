@@ -134,8 +134,8 @@ export default function RequestsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-gray-600 dark:text-gray-400">Loading requests...</p>
+      <div className="loading-center">
+        <p className="text-muted">Loading requests...</p>
       </div>
     )
   }
@@ -144,8 +144,8 @@ export default function RequestsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">My Requests</h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <h2 className="page-title">My Requests</h2>
+          <p className="text-muted">
             View and monitor your service requests
           </p>
         </div>
@@ -215,7 +215,7 @@ export default function RequestsPage() {
 
       {filteredRequests.length === 0 && requests.length > 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
+          <CardContent className="empty-state">
             <p className="text-gray-600 dark:text-gray-400 mb-4">
               No {statusFilter !== 'all' ? statusFilter : ''} requests found.
             </p>
@@ -223,7 +223,7 @@ export default function RequestsPage() {
         </Card>
       ) : requests.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
+          <CardContent className="empty-state">
             <p className="text-gray-600 dark:text-gray-400 mb-4">
               You haven&apos;t created any requests yet.
             </p>

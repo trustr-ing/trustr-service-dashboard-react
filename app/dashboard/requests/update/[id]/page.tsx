@@ -62,8 +62,8 @@ export default function UpdateRequestPage({ params }: { params: Promise<{ id: st
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-gray-600 dark:text-gray-400">Loading request data...</p>
+      <div className="loading-center">
+        <p className="text-muted">Loading request data...</p>
       </div>
     )
   }

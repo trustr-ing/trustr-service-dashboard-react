@@ -235,10 +235,10 @@ export default function SemanticRankingRequestPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">
+        <h2 className="page-title">
           {isUpdate ? 'Update Semantic Ranking Request' : 'Semantic Ranking Request'}
         </h2>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-muted">
           {isUpdate 
             ? `Updating request ${originalEventId?.slice(0, 8)}... - This will re-trigger the ranking service`
             : 'Rank event references using semantic similarity and optional trust weighting'
@@ -260,7 +260,7 @@ export default function SemanticRankingRequestPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Title <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -270,9 +270,9 @@ export default function SemanticRankingRequestPage() {
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="e.g., Nostr Relay Developers"
                   disabled={loading}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                  className="field-input"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   A descriptive title for this ranking request
                 </p>
               </div>
@@ -286,14 +286,14 @@ export default function SemanticRankingRequestPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="field-label">
                     POV Type <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                    className="field-input"
                   >
                     <option value="p">p</option>
                     <option value="P">P</option>
@@ -302,69 +302,69 @@ export default function SemanticRankingRequestPage() {
                     <option value="e">e</option>
                     <option value="a">a</option>
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="field-hint">
                     Alias for subject extraction from the POV reference.
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="field-label">
                     Rank Type <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
                     value={formData.rank_type}
                     onChange={(e) => setFormData({ ...formData, rank_type: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                    className="field-input"
                   >
                     <option value="pubkey">pubkey</option>
                     <option value="id">id</option>
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="field-hint">
                     Candidate matching field for event ranking.
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="field-label">
                     Rank Kind <span className="text-red-500">*</span>
                   </label>
                   <select
                     required
                     value={formData.rank_kind}
                     onChange={(e) => setFormData({ ...formData, rank_kind: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                    className="field-input"
                   >
                     <option value="1">1 (short notes)</option>
                     <option value="30023">30023 (long-form articles)</option>
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="field-hint">
                     Single event kind to rank for this request.
                   </p>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Ranking Model <span className="text-red-500">*</span>
                 </label>
                 <select
                   required
                   value={formData.model}
                   onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                  className="field-input"
                 >
                   <option value="semantic">Semantic Only</option>
                   <option value="fused">Fused (Semantic + Social)</option>
                   <option value="social">Social Only</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   Choose between semantic similarity, social graph, or fused ranking
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Search Context <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -373,15 +373,15 @@ export default function SemanticRankingRequestPage() {
                   placeholder="e.g., nostr relay software, bitcoin developers"
                   value={formData.context}
                   onChange={(e) => setFormData({ ...formData, context: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                  className="field-input"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   Query string for semantic similarity matching
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Lambda (Trust Weight): {formData.lambda}
                 </label>
                 <input
@@ -393,13 +393,13 @@ export default function SemanticRankingRequestPage() {
                   onChange={(e) => setFormData({ ...formData, lambda: e.target.value })}
                   className="w-full"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   Balance between semantic similarity (0) and social trust (2). Default: 1.0
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Context Weight
                 </label>
                 <input
@@ -411,13 +411,13 @@ export default function SemanticRankingRequestPage() {
                   onChange={(e) => setFormData({ ...formData, context_weight: e.target.value })}
                   className="w-full"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   Weight of context in semantic ranking (0-1)
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Min Rank
                 </label>
                 <input
@@ -427,13 +427,13 @@ export default function SemanticRankingRequestPage() {
                   placeholder="0"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:border-gray-600"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   Exclude normalized results below this rank threshold.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Max Results
                 </label>
                 <input
@@ -445,32 +445,32 @@ export default function SemanticRankingRequestPage() {
                   placeholder="10000"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:border-gray-600"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   Upper bound for ranked results before minrank filtering (default: 10000).
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="field-label">
                     Pool Start Date
                   </label>
                   <input
                     type="date"
                     value={formData.pool_start || ''}
                     onChange={(e) => setFormData({ ...formData, pool_start: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                    className="field-input"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="field-label">
                     Pool End Date
                   </label>
                   <input
                     type="date"
                     value={formData.pool_end || ''}
                     onChange={(e) => setFormData({ ...formData, pool_end: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                    className="field-input"
                   />
                 </div>
               </div>
@@ -498,7 +498,7 @@ export default function SemanticRankingRequestPage() {
             </div>
 
             {error && (
-              <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
+              <div className="alert-error">
                 <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
               </div>
             )}

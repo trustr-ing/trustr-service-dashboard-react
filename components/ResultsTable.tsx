@@ -302,7 +302,7 @@ export function ResultsTable({ results, title, description, showProfiles = true 
               Showing {rankFilteredResults.length} of {results.length} results
             </p>
             {loadingProfiles && canShowProfiles && (
-              <p className="text-xs text-gray-500 mt-1">Loading profile metadata...</p>
+              <p className="field-hint">Loading profile metadata...</p>
             )}
           </div>
         )}
@@ -329,7 +329,7 @@ export function ResultsTable({ results, title, description, showProfiles = true 
             return (
               <div
                 key={`${result.resultTag}:${result.subject}-${idx}`}
-                className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+                className="card-row"
               >
                 <div className="flex items-start gap-4">
                   {canShowProfiles && (
@@ -358,16 +358,16 @@ export function ResultsTable({ results, title, description, showProfiles = true 
                       <span className="text-xs text-gray-500 dark:text-gray-400 uppercase">
                         {result.resultTag}
                       </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                      <span className="text-subtle">
                         Rank Value: {formatScore(result.score)}
                       </span>
                       {result.povRank !== undefined && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-subtle">
                           POV Rank: {formatScore(result.povRank)}
                         </span>
                       )}
                       {result.confidence !== undefined && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-subtle">
                           Confidence: {formatScore(result.confidence)}
                         </span>
                       )}

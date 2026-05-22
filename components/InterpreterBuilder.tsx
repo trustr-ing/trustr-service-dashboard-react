@@ -103,7 +103,7 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
           <label className="block text-sm font-medium">
             Interpreters
           </label>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="field-hint">
             Configure which Nostr event types to use for ranking
           </p>
         </div>
@@ -149,7 +149,7 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium mb-1">Type</label>
+                    <label className="field-label-sm">Type</label>
                     <select
                       value={interpreter.type}
                       onChange={(e) => {
@@ -163,7 +163,7 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
                         })
                       }}
                       disabled={disabled}
-                      className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5"
+                      className="field-input-sm"
                     >
                       {INTERPRETER_TYPES.map(type => (
                         <option key={type.value} value={type.value}>
@@ -175,7 +175,7 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium mb-1">Actor Type</label>
+                      <label className="field-label-sm">Actor Type</label>
                       <select
                         value={interpreter.actorType || 'p'}
                         onChange={(e) => {
@@ -190,7 +190,7 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
                           })
                         }}
                         disabled={disabled}
-                        className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5"
+                        className="field-input-sm"
                       >
                         {interpreterType?.actorTypes.map(type => (
                           <option key={type} value={type}>{type}</option>
@@ -199,12 +199,12 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium mb-1">Subject Type</label>
+                      <label className="field-label-sm">Subject Type</label>
                       <select
                         value={interpreter.subjectType || 'p'}
                         onChange={(e) => updateInterpreter(index, { subjectType: e.target.value })}
                         disabled={disabled}
-                        className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5"
+                        className="field-input-sm"
                       >
                         {availableSubjectTypes.map(type => (
                           <option key={type} value={type}>{type}</option>
@@ -215,7 +215,7 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
 
                   <div className="pt-2 border-t space-y-3">
                     <div>
-                      <label className="block text-xs font-medium mb-1">
+                      <label className="field-label-sm">
                         Iterate (Depth of Search)
                       </label>
                       <input
@@ -225,9 +225,9 @@ export function InterpreterBuilder({ interpreters, onChange, disabled }: Interpr
                         value={interpreter.iterate || 1}
                         onChange={(e) => updateInterpreter(index, { iterate: parseInt(e.target.value) || 1 })}
                         disabled={disabled}
-                        className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1.5"
+                        className="field-input-sm"
                       />
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="field-hint">
                         How many degrees of separation to iterate when discovering new actors/subjects
                       </p>
                     </div>

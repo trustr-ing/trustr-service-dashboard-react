@@ -72,8 +72,8 @@ export function DiscoveryDemoPage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight mt-2">Trustr MVP Demo</h2>
-        <p className="text-gray-600 dark:text-gray-400">
+        <h2 className="page-title mt-2">Trustr MVP Demo</h2>
+        <p className="text-muted">
           A three-step pipeline: build your web of trust, search it by topic, rank authors by engagement.
         </p>
       </div>
@@ -134,10 +134,10 @@ export function DiscoveryDemoPage() {
               isConnected={pipeline.baselineMonitor.isConnected}
             />
             {pipeline.baseline.status === 'error' && pipeline.baseline.error && (
-              <p className="text-xs text-red-600 dark:text-red-400 mt-1">{pipeline.baseline.error}</p>
+              <p className="field-error">{pipeline.baseline.error}</p>
             )}
             {baselineReady && pipeline.baseline.eventId && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="field-hint">
                 <Link
                   href={`/dashboard/requests/${pipeline.baseline.eventId}`}
                   className="underline hover:text-gray-700 dark:hover:text-gray-300"
@@ -159,16 +159,16 @@ export function DiscoveryDemoPage() {
         />
         <CardContent className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Search for</label>
+            <label className="field-label">Search for</label>
             <input
               type="text"
               value={context}
               onChange={e => setContextOverride(e.target.value)}
               placeholder="e.g., nostr relay operators"
               disabled={!baselineReady || semanticActive}
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 disabled:cursor-not-allowed"
+              className="field-input disabled:cursor-not-allowed"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="field-hint">
               Natural-language query. Matched by embedding similarity, not keyword search.
             </p>
           </div>
@@ -222,10 +222,10 @@ export function DiscoveryDemoPage() {
               isConnected={pipeline.semanticMonitor.isConnected}
             />
             {pipeline.semantic.status === 'error' && pipeline.semantic.error && (
-              <p className="text-xs text-red-600 dark:text-red-400 mt-1">{pipeline.semantic.error}</p>
+              <p className="field-error">{pipeline.semantic.error}</p>
             )}
             {semanticReady && pipeline.semantic.eventId && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="field-hint">
                 <Link
                   href={`/dashboard/requests/${pipeline.semantic.eventId}`}
                   className="underline hover:text-gray-700 dark:hover:text-gray-300"
@@ -289,10 +289,10 @@ export function DiscoveryDemoPage() {
               isConnected={pipeline.engagementMonitor.isConnected}
             />
             {pipeline.engagement.status === 'error' && pipeline.engagement.error && (
-              <p className="text-xs text-red-600 dark:text-red-400 mt-1">{pipeline.engagement.error}</p>
+              <p className="field-error">{pipeline.engagement.error}</p>
             )}
             {pipeline.engagement.status === 'completed' && pipeline.engagement.eventId && (
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="field-hint">
                 <Link
                   href={`/dashboard/requests/${pipeline.engagement.eventId}`}
                   className="underline hover:text-gray-700 dark:hover:text-gray-300"
@@ -321,7 +321,7 @@ function WeightSlider({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium mb-1">
+      <label className="field-label">
         {label}: {value.toFixed(1)}
       </label>
       <input

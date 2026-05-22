@@ -229,7 +229,7 @@ export function POVInput({ value, onChange, disabled, userPubkey, allowMultiple 
               onChange={(e) => handlePubkeyChange(0, e.target.value)}
               placeholder="Pubkey (64 character hex)"
               disabled={disabled}
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 font-mono text-sm"
+              className="field-input font-mono text-sm"
             />
           )}
           <p className="text-xs text-gray-500">
@@ -246,9 +246,9 @@ export function POVInput({ value, onChange, disabled, userPubkey, allowMultiple 
             onChange={(e) => handleNaddrChange(e.target.value)}
             placeholder="naddr1..."
             disabled={disabled}
-            className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 font-mono text-sm"
+            className="field-input font-mono text-sm"
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="field-hint">
             Enter an naddr address (NIP-19 event pointer) to use output from any event
           </p>
         </div>
@@ -270,7 +270,7 @@ export function POVInput({ value, onChange, disabled, userPubkey, allowMultiple 
                 setValidationError(null)
               }}
               disabled={disabled}
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+              className="field-input"
             >
               <option value="">Select a previous request output...</option>
               {pastRequests.map((request) => {
@@ -286,7 +286,7 @@ export function POVInput({ value, onChange, disabled, userPubkey, allowMultiple 
               })}
             </select>
           )}
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="field-hint">
             Use the output from one of your previous successful requests as the starting point
           </p>
         </div>

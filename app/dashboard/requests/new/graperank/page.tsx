@@ -268,10 +268,10 @@ export default function GrapeRankRequestPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">
+        <h2 className="page-title">
           {isUpdate ? 'Update GrapeRank Request' : 'GrapeRank Request'}
         </h2>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-muted">
           {isUpdate 
             ? `Updating request ${originalEventId?.slice(0, 8)}... - This will re-trigger the ranking service`
             : 'Rank Nostr users by trust using follows, mutes, reports, zaps, and attestations'
@@ -293,7 +293,7 @@ export default function GrapeRankRequestPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Title <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -303,9 +303,9 @@ export default function GrapeRankRequestPage() {
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="e.g., Bitcoin Core Contributors"
                   disabled={loading}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                  className="field-input"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   A descriptive title for this ranking request
                 </p>
               </div>
@@ -318,14 +318,14 @@ export default function GrapeRankRequestPage() {
               />
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Type
                 </label>
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                   disabled={loading}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                  className="field-input"
                 >
                   {graperankAllowedRequestTypes.map(requestType => (
                     <option key={requestType} value={requestType}>
@@ -333,13 +333,13 @@ export default function GrapeRankRequestPage() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   Select which POV type the service should resolve.
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Min Rank
                 </label>
                 <input
@@ -349,13 +349,13 @@ export default function GrapeRankRequestPage() {
                   placeholder="0.0001"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:border-gray-600"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   Exclude results below this rank (default 0.0001 excludes rank == 0)
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Attenuation: {formData.attenuation}
                 </label>
                 <input
@@ -367,13 +367,13 @@ export default function GrapeRankRequestPage() {
                   onChange={(e) => setFormData({ ...formData, attenuation: e.target.value })}
                   className="w-full"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   Influence decay per degree of separation (0-1)
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Rigor: {formData.rigor}
                 </label>
                 <input
@@ -385,13 +385,13 @@ export default function GrapeRankRequestPage() {
                   onChange={(e) => setFormData({ ...formData, rigor: e.target.value })}
                   className="w-full"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   Confidence threshold factor (0-1)
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="field-label">
                   Precision
                 </label>
                 <input
@@ -399,9 +399,9 @@ export default function GrapeRankRequestPage() {
                   step="0.00001"
                   value={formData.precision}
                   onChange={(e) => setFormData({ ...formData, precision: e.target.value })}
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2"
+                  className="field-input"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="field-hint">
                   Max delta between iterations (0 = iterate until stable)
                 </p>
               </div>
@@ -414,7 +414,7 @@ export default function GrapeRankRequestPage() {
             </div>
 
             {error && (
-              <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
+              <div className="alert-error">
                 <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
               </div>
             )}

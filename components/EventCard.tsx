@@ -143,7 +143,7 @@ export function EventCard({ rank, resultTag, subject, score, povRank, confidence
       : null
 
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
+    <div className="card-row">
       <div className="flex items-start gap-3">
         <div className="flex-shrink-0 text-sm font-semibold text-gray-500 w-8 text-right pt-1">
           #{rank}
@@ -173,7 +173,7 @@ export function EventCard({ rank, resultTag, subject, score, povRank, confidence
                 type="button"
                 onClick={() => copy(npub, 'npub')}
                 title="Copy npub"
-                className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline decoration-dotted"
+                className="link-subtle"
               >
                 {copiedLabel === 'npub' ? '✓ copied npub' : 'copy npub'}
               </button>
@@ -183,7 +183,7 @@ export function EventCard({ rank, resultTag, subject, score, povRank, confidence
                 type="button"
                 onClick={() => copy(authorPubkey, 'hex')}
                 title="Copy hex pubkey"
-                className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline decoration-dotted"
+                className="link-subtle"
               >
                 {copiedLabel === 'hex' ? '✓ copied hex' : 'copy hex'}
               </button>
@@ -202,17 +202,17 @@ export function EventCard({ rank, resultTag, subject, score, povRank, confidence
 
           <div className="mt-2 text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap break-words">
             {loading ? (
-              <span className="text-gray-400 italic">Loading event…</span>
+              <span className="text-empty">Loading event…</span>
             ) : event ? (
               <>
                 {isArticle && title && <div className="font-semibold">{title}</div>}
                 {isArticle && summary && (
                   <div className="text-gray-600 dark:text-gray-400 text-xs mt-1">{summary}</div>
                 )}
-                {!isArticle && <div>{contentPreview || <span className="text-gray-400 italic">(empty content)</span>}</div>}
+                {!isArticle && <div>{contentPreview || <span className="text-empty">(empty content)</span>}</div>}
               </>
             ) : (
-              <span className="text-gray-400 italic">Event not found on relays</span>
+              <span className="text-empty">Event not found on relays</span>
             )}
           </div>
         </div>
@@ -231,7 +231,7 @@ export function EventCard({ rank, resultTag, subject, score, povRank, confidence
               {eventId && (
                 <button
                   type="button"
-                  className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="menu-item"
                   onClick={() => {
                     copy(eventId, 'event-id')
                     setMenuOpen(false)
@@ -243,7 +243,7 @@ export function EventCard({ rank, resultTag, subject, score, povRank, confidence
               {nevent && (
                 <button
                   type="button"
-                  className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="menu-item"
                   onClick={() => {
                     copy(nevent, 'nevent')
                     setMenuOpen(false)
@@ -255,7 +255,7 @@ export function EventCard({ rank, resultTag, subject, score, povRank, confidence
               {naddr && (
                 <button
                   type="button"
-                  className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="menu-item"
                   onClick={() => {
                     copy(naddr, 'naddr')
                     setMenuOpen(false)
@@ -267,7 +267,7 @@ export function EventCard({ rank, resultTag, subject, score, povRank, confidence
               {rawJson && (
                 <button
                   type="button"
-                  className="w-full text-left px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="menu-item"
                   onClick={() => {
                     copy(rawJson, 'json')
                     setMenuOpen(false)

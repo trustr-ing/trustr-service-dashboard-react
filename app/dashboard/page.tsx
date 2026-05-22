@@ -5,8 +5,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <p className="text-gray-600 dark:text-gray-400">
+        <h2 className="page-title">Dashboard</h2>
+        <p className="text-muted">
           Manage your Trustr service requests
         </p>
       </div>
