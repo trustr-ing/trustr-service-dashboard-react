@@ -17,7 +17,7 @@ function getInterpreterConfig(event: NDKEvent): Array<Record<string, unknown>> {
 }
 
 describe('demo presets', () => {
-  it('maps fat zap slider to >10000000 msats in engagement request payload', () => {
+  it('emits both baseline and zap interpreters with fat zap slider mapped to >10000000 msats', () => {
     const event = buildEngagementRankEvent(
       new NDK(),
       'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
@@ -29,14 +29,25 @@ describe('demo presets', () => {
       },
     )
 
-    const [zapInterpreter] = getInterpreterConfig(event)
-    assert.equal(zapInterpreter?.id, 'nostr-9735')
+    const interpreters = getInterpreterConfig(event)
+    const baselineInterpreter = interpreters.find((entry) => entry.id === 'nostr-0')
+    const zapInterpreter = interpreters.find((entry) => entry.id === 'nostr-9735')
 
-    const params = zapInterpreter?.params as Record<string, unknown>
-    assert.equal(params?.actorType, 'e')
-    assert.equal(params?.subjectType, 'pubkey')
-    assert.equal(params?.value, 0.6)
-    assert.equal(params?.['>10000000'], 0.9)
+    assert.ok(baselineInterpreter, 'engagement request must include nostr-0 baseline interpreter')
+    assert.ok(zapInterpreter, 'engagement request must include nostr-9735 zap interpreter')
+
+    const baselineParams = baselineInterpreter?.params as Record<string, unknown>
+    assert.equal(baselineParams?.actorType, 'e')
+    assert.equal(baselineParams?.subjectType, 'pubkey')
+    assert.equal(baselineParams?.value, 1)
+    assert.equal(baselineParams?.confidence, 0.2)
+
+    const zapParams = zapInterpreter?.params as Record<string, unknown>
+    assert.equal(zapParams?.actorType, 'e')
+    assert.equal(zapParams?.subjectType, 'pubkey')
+    assert.equal(zapParams?.value, 0.6)
+    assert.equal(zapParams?.confidence, 1.0)
+    assert.equal(zapParams?.['>10000000'], 0.9)
   })
 
   it('persists both zap and fat-zap weights in saved demo config', () => {

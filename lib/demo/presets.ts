@@ -189,6 +189,16 @@ export function buildEngagementRankEvent(
     ['config', 'type', 'pubkey'],
     ['config', 'interpreters', JSON.stringify([
       {
+        id: 'nostr-0',
+        iterate: 1,
+        params: {
+          actorType: 'e',
+          subjectType: 'pubkey',
+          value: 1,
+          confidence: 0.2,
+        },
+      },
+      {
         id: 'nostr-9735',
         iterate: 1,
         params: {
