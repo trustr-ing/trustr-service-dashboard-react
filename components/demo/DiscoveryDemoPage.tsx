@@ -73,7 +73,7 @@ export function DiscoveryDemoPage() {
     <div className="space-y-6 max-w-3xl">
       <div>
         <h2 className="page-title mt-2">Trustr MVP Demo</h2>
-        <p className="text-muted">
+        <p className="">
           A three-step pipeline: build your web of trust, search it by topic, rank authors by engagement.
         </p>
       </div>
@@ -113,6 +113,7 @@ export function DiscoveryDemoPage() {
             <div className="flex gap-2">
               <Button
                 type="button"
+                variant={baselineReady ? 'outline' : 'default'}
                 onClick={() => void pipeline.submitBaseline()}
                 disabled={!canSubmitBaseline}
               >
@@ -127,6 +128,11 @@ export function DiscoveryDemoPage() {
                   Cancel
                 </Button>
               )}
+              {baselineReady && pipeline.baseline.eventId && (
+                <Link href={`/dashboard/requests/${pipeline.baseline.eventId}`}>
+                  <Button type="button">View results</Button>
+                </Link>
+              )}
             </div>
             <LatestFeedback
               active={baselineActive}
@@ -135,16 +141,6 @@ export function DiscoveryDemoPage() {
             />
             {pipeline.baseline.status === 'error' && pipeline.baseline.error && (
               <p className="field-error">{pipeline.baseline.error}</p>
-            )}
-            {baselineReady && pipeline.baseline.eventId && (
-              <p className="field-hint">
-                <Link
-                  href={`/dashboard/requests/${pipeline.baseline.eventId}`}
-                  className="underline hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                  View results
-                </Link>
-              </p>
             )}
           </div>
         </CardContent>
@@ -205,15 +201,25 @@ export function DiscoveryDemoPage() {
             <div className="flex gap-2">
               <Button
                 type="button"
+                variant={semanticReady ? 'outline' : 'default'}
                 onClick={() => void pipeline.submitSemantic(context.trim(), rankKind)}
                 disabled={!canSubmitSemantic}
               >
-                {semanticActive ? 'Searching…' : 'Search'}
+                {semanticActive ? 'Searching…' : semanticReady ? 'Re-run search' : 'Search'}
               </Button>
               {semanticActive && (
                 <Button type="button" variant="outline" onClick={pipeline.cancelSemantic}>
                   Cancel
                 </Button>
+              )}
+              {semanticReady && pipeline.semantic.eventId && (
+                <Link href={`/dashboard/requests/${pipeline.semantic.eventId}`}>
+                  <Button type="button">
+                    View {pipeline.semanticMonitor.outputEvents.length > 0
+                      ? `${pipeline.semanticMonitor.outputEvents.length} output event(s)`
+                      : 'results'}
+                  </Button>
+                </Link>
               )}
             </div>
             <LatestFeedback
@@ -223,18 +229,6 @@ export function DiscoveryDemoPage() {
             />
             {pipeline.semantic.status === 'error' && pipeline.semantic.error && (
               <p className="field-error">{pipeline.semantic.error}</p>
-            )}
-            {semanticReady && pipeline.semantic.eventId && (
-              <p className="field-hint">
-                <Link
-                  href={`/dashboard/requests/${pipeline.semantic.eventId}`}
-                  className="underline hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                  View {pipeline.semanticMonitor.outputEvents.length > 0
-                    ? `${pipeline.semanticMonitor.outputEvents.length} output event(s)`
-                    : 'results'}
-                </Link>
-              </p>
             )}
           </div>
         </CardContent>
@@ -272,15 +266,25 @@ export function DiscoveryDemoPage() {
             <div className="flex gap-2">
               <Button
                 type="button"
+                variant={pipeline.engagement.status === 'completed' ? 'outline' : 'default'}
                 onClick={() => void pipeline.submitEngagement({ zap: zapWeight, fatZap: fatZapWeight })}
                 disabled={!canSubmitEngagement}
               >
-                {engagementActive ? 'Ranking…' : 'Rank authors'}
+                {engagementActive
+                  ? 'Ranking…'
+                  : pipeline.engagement.status === 'completed'
+                    ? 'Re-rank authors'
+                    : 'Rank authors'}
               </Button>
               {engagementActive && (
                 <Button type="button" variant="outline" onClick={pipeline.cancelEngagement}>
                   Cancel
                 </Button>
+              )}
+              {pipeline.engagement.status === 'completed' && pipeline.engagement.eventId && (
+                <Link href={`/dashboard/requests/${pipeline.engagement.eventId}`}>
+                  <Button type="button">View ranked authors</Button>
+                </Link>
               )}
             </div>
             <LatestFeedback
@@ -290,16 +294,6 @@ export function DiscoveryDemoPage() {
             />
             {pipeline.engagement.status === 'error' && pipeline.engagement.error && (
               <p className="field-error">{pipeline.engagement.error}</p>
-            )}
-            {pipeline.engagement.status === 'completed' && pipeline.engagement.eventId && (
-              <p className="field-hint">
-                <Link
-                  href={`/dashboard/requests/${pipeline.engagement.eventId}`}
-                  className="underline hover:text-gray-700 dark:hover:text-gray-300"
-                >
-                  View ranked authors
-                </Link>
-              </p>
             )}
           </div>
         </CardContent>
