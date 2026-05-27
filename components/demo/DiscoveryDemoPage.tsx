@@ -5,9 +5,16 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LatestFeedback } from '@/components/demo/LatestFeedback'
+import { ExportResultsDialog } from '@/components/demo/ExportResultsDialog'
 import { useServiceAnnouncements } from '@/lib/hooks/useServiceAnnouncements'
 import { useDemoPipeline } from '@/lib/hooks/useDemoPipeline'
-import { RankKind } from '@/lib/demo/presets'
+import {
+  PRESET_BASELINE,
+  PRESET_ENGAGEMENT,
+  PRESET_SEMANTIC,
+  PresetId,
+  RankKind,
+} from '@/lib/demo/presets'
 
 function CompletedBadge() {
   return (
@@ -54,6 +61,14 @@ export function DiscoveryDemoPage() {
   const [fatZapWeight, setFatZapWeight] = useState(0.5)
   const [reactionWeight, setReactionWeight] = useState(0.5)
   const [replyWeight, setReplyWeight] = useState(0.5)
+  const [exportDialog, setExportDialog] = useState<{
+    preset: PresetId
+    naddr: string
+    // Earliest output event's kind+tags, captured from the corresponding
+    // monitor at click-time. Lets the dialog skip the relay round-trip
+    // entirely on freshly completed demos.
+    prefetchedOutput?: { kind: number; tags: string[][] }
+  } | null>(null)
 
   const context = contextOverride ?? pipeline.semantic.context
   const rankKind = rankKindOverride ?? pipeline.semantic.rankKind
@@ -132,6 +147,22 @@ export function DiscoveryDemoPage() {
                 <Link href={`/dashboard/requests/${pipeline.baseline.eventId}`}>
                   <Button type="button">View results</Button>
                 </Link>
+              )}
+              {baselineReady && pipeline.baseline.naddr && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const first = pipeline.baselineMonitor.outputEvents[0]
+                    setExportDialog({
+                      preset: PRESET_BASELINE,
+                      naddr: pipeline.baseline.naddr!,
+                      prefetchedOutput: first ? { kind: first.kind, tags: first.tags } : undefined,
+                    })
+                  }}
+                >
+                  Export Results
+                </Button>
               )}
             </div>
             <LatestFeedback
@@ -221,6 +252,22 @@ export function DiscoveryDemoPage() {
                   </Button>
                 </Link>
               )}
+              {semanticReady && pipeline.semantic.naddr && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const first = pipeline.semanticMonitor.outputEvents[0]
+                    setExportDialog({
+                      preset: PRESET_SEMANTIC,
+                      naddr: pipeline.semantic.naddr!,
+                      prefetchedOutput: first ? { kind: first.kind, tags: first.tags } : undefined,
+                    })
+                  }}
+                >
+                  Export Results
+                </Button>
+              )}
             </div>
             <LatestFeedback
               active={semanticActive}
@@ -286,6 +333,22 @@ export function DiscoveryDemoPage() {
                   <Button type="button">View ranked authors</Button>
                 </Link>
               )}
+              {pipeline.engagement.status === 'completed' && pipeline.engagement.naddr && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const first = pipeline.engagementMonitor.outputEvents[0]
+                    setExportDialog({
+                      preset: PRESET_ENGAGEMENT,
+                      naddr: pipeline.engagement.naddr!,
+                      prefetchedOutput: first ? { kind: first.kind, tags: first.tags } : undefined,
+                    })
+                  }}
+                >
+                  Export Results
+                </Button>
+              )}
             </div>
             <LatestFeedback
               active={engagementActive}
@@ -298,6 +361,19 @@ export function DiscoveryDemoPage() {
           </div>
         </CardContent>
       </Card>
+
+      {exportDialog && (
+        <ExportResultsDialog
+          preset={exportDialog.preset}
+          outputNaddr={exportDialog.naddr}
+          prefetchedOutput={exportDialog.prefetchedOutput}
+          rankKind={pipeline.semantic.rankKind}
+          open={!!exportDialog}
+          onOpenChange={(open) => {
+            if (!open) setExportDialog(null)
+          }}
+        />
+      )}
     </div>
   )
 }
