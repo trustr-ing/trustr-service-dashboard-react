@@ -16,6 +16,24 @@ export interface ServiceOption {
   defaultValue?: string
 }
 
+/**
+ * Where a subscription-aware client should send NIP-59 gift-wrapped
+ * kind-7570 rumors (Subscription Inquiries) for this service.
+ *
+ * Sourced from a `p` tag whose 4th positional parameter is `"7570"`, per
+ * tsm/subscription-events.md §Advertising Support:
+ *
+ *   ["p", <messaging_pubkey>, <relay_hint?>, "7570"]
+ *
+ * If the announcement does NOT advertise kind-7570 support, the parser
+ * leaves `messagingTarget` unset and the dashboard MUST treat the
+ * service as unsubscribable.
+ */
+export interface MessagingTarget {
+  pubkey: string
+  relayHint: string | null
+}
+
 export interface ServiceAnnouncement {
   id: string
   pubkey: string
@@ -28,7 +46,24 @@ export interface ServiceAnnouncement {
   options: ServiceOption[]
   customFields: Record<string, string>
   timestamp: number
+  messagingTarget?: MessagingTarget
   rawEvent?: NDKEvent
+}
+
+/**
+ * Extract the kind-7570 messaging target from a raw tag list. Returns
+ * `null` when no `["p", _, _, "7570"]` tag is present. Used both by
+ * `parseAnnouncementEvent` and by callers that only have a tag array
+ * (e.g. validators in `lib/export`).
+ */
+export function findMessagingTarget(tags: string[][]): MessagingTarget | null {
+  const messagingTag = tags.find(t => t[0] === 'p' && t[3] === '7570' && Boolean(t[1]))
+  if (!messagingTag) return null
+  const relayHint = messagingTag[2]
+  return {
+    pubkey: messagingTag[1],
+    relayHint: relayHint && relayHint.length > 0 ? relayHint : null,
+  }
 }
 
 export async function fetchServiceAnnouncements(): Promise<ServiceAnnouncement[]> {
@@ -115,6 +150,12 @@ export function parseAnnouncementEvent(event: NDKEvent): ServiceAnnouncement {
       customFields[t[1]] = t[2]
     })
 
+  // Surface the kind-7570 messaging target separately. We deliberately
+  // do NOT overwrite `pubkey` (which is preserved for backward
+  // compatibility with existing consumers that treat the first `p` tag
+  // as the addressed service pubkey).
+  const messagingTarget = findMessagingTarget(tags) ?? undefined
+
   return {
     id: event.id,
     pubkey,
@@ -127,6 +168,7 @@ export function parseAnnouncementEvent(event: NDKEvent): ServiceAnnouncement {
     options,
     customFields,
     timestamp: event.created_at || 0,
+    messagingTarget,
     rawEvent: event
   }
 }

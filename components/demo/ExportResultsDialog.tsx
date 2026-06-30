@@ -38,7 +38,11 @@ import {
   MuteMergeMode,
 } from '@/lib/export/types'
 import { validateOutputEvent } from '@/lib/export/validateOutput'
-import { ORCHESTRATOR_ASSERTIONS_PUBKEY } from '@/lib/config'
+import {
+  ORCHESTRATOR_ASSERTIONS_PUBKEY,
+  ORCHESTRATOR_ASSERTIONS_SERVICE_ID,
+} from '@/lib/config'
+import { pickRequestPTag } from '@/lib/subscription/requestRouting'
 
 /**
  * Minimal shape needed to validate and extract subjects from a demo's
@@ -235,12 +239,34 @@ export function ExportResultsDialog({
         const configType =
           validation.subjects[0]?.tagLetter ?? 'p'
         const relayHints = getRelayHintsFromNaddr(outputNaddr)
+
+        // Resolve the user's identity pubkey via NIP-07 so we can pick
+        // a subscription pubkey if one exists. When the assertions
+        // service runs in public_service mode (today through R2),
+        // pickRequestPTag falls through to ORCHESTRATOR_ASSERTIONS_PUBKEY
+        // and behavior is unchanged. After R3's flip to
+        // subscription_service, the user MUST have an active
+        // subscription or the orchestrator will reject the request.
+        const assertionsSigner = await getNip07Signer()
+        if (!assertionsSigner) throw new Error('Nostr signer not available')
+        const assertionsUser = await assertionsSigner.user()
+        if (!assertionsUser.pubkey) {
+          throw new Error('Could not resolve user pubkey')
+        }
+
+        const routing = pickRequestPTag({
+          userPubkey: assertionsUser.pubkey,
+          servicePubkey: ORCHESTRATOR_ASSERTIONS_PUBKEY,
+          serviceId: ORCHESTRATOR_ASSERTIONS_SERVICE_ID,
+        })
+
         unsignedEvent = buildAssertionRequestEvent({
           povNaddr: outputNaddr,
           configType,
           dTag: dTag.trim() || `trustr_assertions_${preset}`,
           title: title.trim() || undefined,
           relayHints,
+          signingPubkey: routing.viaSubscription ? routing.pTagPubkey : undefined,
         })
       } else if (target === 'primary-mute-list') {
         if (!filterResult) throw new Error('No subjects to export')

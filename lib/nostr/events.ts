@@ -14,12 +14,23 @@ export interface ServiceRequestConfig {
   [key: string]: string | undefined
 }
 
+export interface BuildServiceRequestOptions {
+  /**
+   * Override for the `p` tag pubkey. Pass the user's active subscription
+   * pubkey when the addressed service runs in `subscription_service` mode;
+   * leave undefined for `public_service` mode. See
+   * `lib/subscription/requestRouting.ts:pickRequestPTag`.
+   */
+  signingPubkey?: string
+}
+
 export function buildServiceRequestEvent(
   serviceId: string,
   servicePubkey: string,
   config: ServiceRequestConfig,
   outputKind: number = 37573,
-  dTag?: string
+  dTag?: string,
+  options: BuildServiceRequestOptions = {},
 ): NDKEvent {
   const ndk = getNDK()
   const event = new NDKEvent(ndk)
@@ -28,10 +39,16 @@ export function buildServiceRequestEvent(
   event.content = ''
   
   const requestDTag = dTag || `${serviceId}-${Date.now()}`
-  
+  const pTagPubkey = options.signingPubkey ?? servicePubkey
+
+  // The `a` tag (service coordinate) is REQUIRED by the orchestrator's
+  // KeyResolver when one subscription pubkey is authorized for multiple
+  // services — without it the request is rejected as ambiguous. It's
+  // also harmless in public_service mode, so we always emit it.
   event.tags = [
     ['d', requestDTag],
-    ['p', servicePubkey],
+    ['p', pTagPubkey],
+    ['a', `37570:${servicePubkey}:${serviceId}`],
     ['k', String(outputKind)],
   ]
   
