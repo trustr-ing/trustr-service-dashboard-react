@@ -1,5 +1,5 @@
 import type { NDKEvent } from '@nostr-dev-kit/ndk'
-import { getNDK } from './ndk'
+import { connectNDK } from './ndk'
 
 export interface RelayPrefs {
   read: string[]
@@ -59,9 +59,11 @@ export async function fetchRelayPrefs(pubkey: string): Promise<RelayPrefs> {
 
   const promise = (async (): Promise<RelayPrefs> => {
     try {
-      const ndk = getNDK()
-      await ndk.connect()
-      const event = await ndk.fetchEvent({ kinds: [10002], authors: [pubkey] })
+      const ndk = await connectNDK()
+      const event = await Promise.race([
+        ndk.fetchEvent({ kinds: [10002], authors: [pubkey] }),
+        new Promise<null>(resolve => setTimeout(() => resolve(null), 8000)),
+      ])
       const prefs: RelayPrefs = event ? parseRelayListEvent(event) : { read: [], write: [] }
       cache.set(pubkey, { prefs, expiresAt: Date.now() + TTL_MS })
       return prefs

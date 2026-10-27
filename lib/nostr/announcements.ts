@@ -1,5 +1,5 @@
 import { NDKEvent, NDKFilter } from '@nostr-dev-kit/ndk'
-import { getNDK } from './ndk'
+import { getNDK, connectNDK } from './ndk'
 
 export interface ServiceConfig {
   key: string
@@ -71,7 +71,7 @@ export async function fetchServiceAnnouncements(): Promise<ServiceAnnouncement[]
   
   // Connect to relays first
   try {
-    await ndk.connect()
+    await connectNDK()
   } catch (err) {
     console.error('Failed to connect to relays:', err)
     throw new Error('Failed to connect to Nostr relays')

@@ -65,7 +65,10 @@ export function ResultsTable({ results, title, description, showProfiles = true 
       setLoadingProfiles(true)
       try {
         const pubkeys = results.map(result => result.subject)
-        const fetchedProfiles = await fetchProfiles(pubkeys)
+        // Render names as each chunk of kind-0 events arrives instead of
+        // waiting for the whole set; a thousand-row table used to show
+        // nothing until every lookup had finished.
+        const fetchedProfiles = await fetchProfiles(pubkeys, snapshot => setProfiles(snapshot))
         setProfiles(fetchedProfiles)
       } catch (err) {
         console.error('Failed to fetch profiles:', err)

@@ -1,7 +1,16 @@
 import type { NDKEvent } from '@nostr-dev-kit/ndk'
-import { getNDK } from './ndk'
+import { connectNDK } from './ndk'
 
 const eventCache = new Map<string, NDKEvent | null>()
+/** A card must not spin forever on a relay that never answers. */
+const EVENT_FETCH_TIMEOUT_MS = 8000
+
+function withTimeout<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>(resolve => setTimeout(() => resolve(fallback), EVENT_FETCH_TIMEOUT_MS)),
+  ])
+}
 const inFlight = new Map<string, Promise<NDKEvent | null>>()
 
 export async function fetchEventByRef(
@@ -15,12 +24,11 @@ export async function fetchEventByRef(
 
   const promise = (async () => {
     try {
-      const ndk = getNDK()
-      await ndk.connect()
+      const ndk = await connectNDK()
 
       let event: NDKEvent | null = null
       if (resultTag === 'e') {
-        event = await ndk.fetchEvent(subject)
+        event = await withTimeout(ndk.fetchEvent(subject), null)
       } else {
         const parts = subject.split(':')
         if (parts.length !== 3) return null
@@ -28,12 +36,12 @@ export async function fetchEventByRef(
         const pubkey = parts[1]
         const identifier = parts[2] ?? ''
         if (!Number.isFinite(kind) || !pubkey) return null
-        const set = await ndk.fetchEvents({
+        const set = await withTimeout(ndk.fetchEvents({
           kinds: [kind],
           authors: [pubkey],
           ...(identifier ? { '#d': [identifier] } : {}),
           limit: 1,
-        })
+        }), new Set<NDKEvent>())
         const arr = Array.from(set).sort(
           (a, b) => (b.created_at ?? 0) - (a.created_at ?? 0),
         )

@@ -1,5 +1,5 @@
 import { NDKEvent } from '@nostr-dev-kit/ndk'
-import { getNDK } from '@/lib/nostr/ndk'
+import { getNDK , connectNDK } from '@/lib/nostr/ndk'
 import type { ExportableSubject, MuteMergeMode } from './types'
 import { DEFAULT_MAX_ITEMS } from './types'
 
@@ -38,7 +38,7 @@ export async function buildMuteListEvent({
   maxItems = DEFAULT_MAX_ITEMS,
 }: BuildMuteListArgs): Promise<BuildMuteListResult> {
   const ndk = getNDK()
-  await ndk.connect()
+  await connectNDK()
 
   const existing = mode === 'add-to'
     ? await ndk.fetchEvent({ kinds: [PRIMARY_MUTE_LIST_KIND], authors: [userPubkey] })

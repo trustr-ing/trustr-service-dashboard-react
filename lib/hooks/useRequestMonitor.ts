@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { NDKEvent, NDKFilter, NDKSubscription } from '@nostr-dev-kit/ndk'
-import { getNDK } from '@/lib/nostr/ndk'
+import { connectNDK } from '@/lib/nostr/ndk'
 import { parseFeedbackEvent, parseOutputEvent, ParsedFeedbackEvent, ParsedOutputEvent } from '@/lib/nostr/events'
 
 // Prevent duplicate rendering when we backfill and subscribe
@@ -52,8 +52,7 @@ export function useRequestMonitor(requestEventId: string | null) {
 
     async function subscribe() {
       try {
-        const ndk = getNDK()
-        await ndk.connect()
+        const ndk = await connectNDK()
 
         if (!mounted) return
 

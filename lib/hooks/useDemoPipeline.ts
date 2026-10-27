@@ -73,7 +73,7 @@ async function publishRequestEvent(event: import('@nostr-dev-kit/ndk').NDKEvent)
     } catch (error) {
       lastError = error
       if (attempt < REQUEST_PUBLISH_MAX_ATTEMPTS) {
-        await ndk.connect()
+        await connectNDK()
       }
     }
   }

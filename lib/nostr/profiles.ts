@@ -1,5 +1,5 @@
-import { NDKUser } from '@nostr-dev-kit/ndk'
-import { getNDK } from './ndk'
+import { NDKUser, type NDKEvent } from '@nostr-dev-kit/ndk'
+import { connectNDK } from './ndk'
 
 export interface NostrProfile {
   pubkey: string
@@ -12,6 +12,35 @@ export interface NostrProfile {
 
 const profileCache = new Map<string, NostrProfile>()
 
+/** Pubkeys per kind-0 request. Relays answer a few hundred authors per REQ comfortably. */
+const PROFILE_CHUNK_SIZE = 150
+/** Give up on a chunk after this long; unresolved pubkeys fall back to bare keys. */
+const PROFILE_CHUNK_TIMEOUT_MS = 8000
+
+const HEX64 = /^[0-9a-f]{64}$/i
+
+function profileFromEvent(event: NDKEvent): NostrProfile {
+  let content: Record<string, unknown> = {}
+  try {
+    const parsed = JSON.parse(event.content || '{}')
+    if (parsed && typeof parsed === 'object') content = parsed as Record<string, unknown>
+  } catch {
+    // malformed kind-0 content: keep the bare pubkey
+  }
+  const str = (key: string): string | undefined => {
+    const value = content[key]
+    return typeof value === 'string' && value.trim() ? value : undefined
+  }
+  return {
+    pubkey: event.pubkey,
+    name: str('name'),
+    display_name: str('display_name') ?? str('displayName'),
+    picture: str('picture') ?? str('image'),
+    about: str('about'),
+    nip05: str('nip05'),
+  }
+}
+
 export async function fetchProfile(pubkey: string): Promise<NostrProfile> {
   // Check cache first
   if (profileCache.has(pubkey)) {
@@ -19,13 +48,17 @@ export async function fetchProfile(pubkey: string): Promise<NostrProfile> {
   }
 
   try {
-    const ndk = getNDK()
-    await ndk.connect()
+    const ndk = await connectNDK()
 
     const user = new NDKUser({ pubkey })
     user.ndk = ndk
 
-    await user.fetchProfile()
+    await Promise.race([
+      user.fetchProfile(),
+      new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error('profile fetch timeout')), PROFILE_CHUNK_TIMEOUT_MS),
+      ),
+    ])
 
     const profile: NostrProfile = {
       pubkey,
@@ -46,26 +79,65 @@ export async function fetchProfile(pubkey: string): Promise<NostrProfile> {
   }
 }
 
-export async function fetchProfiles(pubkeys: string[]): Promise<Map<string, NostrProfile>> {
+/**
+ * Fetch kind-0 profiles for many pubkeys with one relay request per chunk
+ * of PROFILE_CHUNK_SIZE authors, newest event per pubkey winning. Cached
+ * pubkeys are not refetched. `onProgress` receives a snapshot after every
+ * chunk so callers can render names as they arrive instead of waiting for
+ * the whole set. Pubkeys that no relay answers for are cached as bare
+ * profiles so a re-render does not refetch them.
+ */
+export async function fetchProfiles(
+  pubkeys: string[],
+  onProgress?: (profiles: Map<string, NostrProfile>) => void,
+): Promise<Map<string, NostrProfile>> {
   const profiles = new Map<string, NostrProfile>()
-  
-  // Fetch in parallel with a limit
-  const batchSize = 10
-  for (let i = 0; i < pubkeys.length; i += batchSize) {
-    const batch = pubkeys.slice(i, i + batchSize)
-    const results = await Promise.allSettled(
-      batch.map(pubkey => fetchProfile(pubkey))
-    )
-    
-    results.forEach((result, idx) => {
-      if (result.status === 'fulfilled') {
-        profiles.set(batch[idx], result.value)
-      } else {
-        profiles.set(batch[idx], { pubkey: batch[idx] })
-      }
-    })
+  const toFetch: string[] = []
+  const seen = new Set<string>()
+
+  for (const pubkey of pubkeys) {
+    if (!pubkey || seen.has(pubkey)) continue
+    seen.add(pubkey)
+    const cached = profileCache.get(pubkey)
+    if (cached) profiles.set(pubkey, cached)
+    else if (HEX64.test(pubkey)) toFetch.push(pubkey)
+    else profiles.set(pubkey, { pubkey })
   }
-  
+  if (profiles.size > 0) onProgress?.(new Map(profiles))
+  if (toFetch.length === 0) return profiles
+
+  const ndk = await connectNDK()
+
+  for (let i = 0; i < toFetch.length; i += PROFILE_CHUNK_SIZE) {
+    const chunk = toFetch.slice(i, i + PROFILE_CHUNK_SIZE)
+    const newest = new Map<string, NDKEvent>()
+    try {
+      const events = await Promise.race([
+        ndk.fetchEvents(
+          { kinds: [0], authors: chunk, limit: chunk.length },
+          { closeOnEose: true, groupable: false },
+        ),
+        new Promise<Set<NDKEvent>>(resolve =>
+          setTimeout(() => resolve(new Set()), PROFILE_CHUNK_TIMEOUT_MS),
+        ),
+      ])
+      for (const event of events) {
+        const prior = newest.get(event.pubkey)
+        if (!prior || (event.created_at ?? 0) > (prior.created_at ?? 0)) newest.set(event.pubkey, event)
+      }
+    } catch (err) {
+      console.warn('[profiles] chunk fetch failed', err)
+    }
+
+    for (const pubkey of chunk) {
+      const event = newest.get(pubkey)
+      const profile = event ? profileFromEvent(event) : { pubkey }
+      profileCache.set(pubkey, profile)
+      profiles.set(pubkey, profile)
+    }
+    onProgress?.(new Map(profiles))
+  }
+
   return profiles
 }
 

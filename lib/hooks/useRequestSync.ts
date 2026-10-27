@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { NDKEvent, NDKFilter, NDKSubscription } from '@nostr-dev-kit/ndk'
-import { getNDK } from '@/lib/nostr/ndk'
+import { getNDK, connectNDK } from '@/lib/nostr/ndk'
 import { buildOutputEventNaddrFromNdkEvent } from '@/lib/nostr/naddr'
 import {
   getFeedbackMessage,
@@ -14,8 +14,7 @@ import {
 const REQUEST_SYNC_TIMEOUT_MS = 8000
 
 async function collectEventsWithTimeout(filter: NDKFilter, timeoutMs: number): Promise<NDKEvent[]> {
-  const ndk = getNDK()
-  await ndk.connect()
+  const ndk = await connectNDK()
 
   return new Promise((resolve) => {
     const eventMap = new Map<string, NDKEvent>()
