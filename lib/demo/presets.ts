@@ -130,7 +130,9 @@ export function buildBaselineWotEvent(
     ['config', 'type', 'pubkey'],
     ['config', 'minrank', '0.0001'],
     ['config', 'attenuation', '0.5'],
-    ['config', 'rigor', '0.5'],
+    // 0.9 spreads the top of the ranking: confidence saturates at ~94 units of
+    // weighted support instead of ~14, so far fewer subjects tie at 1.0.
+    ['config', 'rigor', '0.9'],
     ['config', 'precision', '0.00001'],
     // Prune between degrees of separation: before expanding the next degree,
     // drop newly discovered actors whose interim rank is below half of
