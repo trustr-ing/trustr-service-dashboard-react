@@ -42,7 +42,11 @@ import {
   ORCHESTRATOR_ASSERTIONS_PUBKEY,
   ORCHESTRATOR_ASSERTIONS_SERVICE_ID,
 } from '@/lib/config'
-import { pickRequestPTag } from '@/lib/subscription/requestRouting'
+import {
+  pickRequestPTag,
+  type PickRequestPTagResult,
+} from '@/lib/subscription/requestRouting'
+import { useSubscriptionPubkey } from '@/lib/hooks/useSubscriptionPubkey'
 
 /**
  * Minimal shape needed to validate and extract subjects from a demo's
@@ -100,7 +104,7 @@ function getTargetsForPreset(preset: PresetId, rankKind?: RankKind): ExportTarge
 }
 
 const TARGET_LABELS: Record<ExportTarget, string> = {
-  'tsm-assertions': 'Trusted Assertions (TSM Subject Assertions, kind 37575)',
+  'tsm-assertions': 'Trusted Assertions (TSM kind 37575, optionally NIP-85 kind 30382)',
   'follow-set': LIST_KIND_SPECS['follow-set'].label,
   'primary-mute-list': LIST_KIND_SPECS['primary-mute-list'].label,
   'kind-mute-set-notes': LIST_KIND_SPECS['kind-mute-set-notes'].label,
@@ -143,7 +147,16 @@ export function ExportResultsDialog({
   const [title, setTitle] = useState('')
   const [dTag, setDTag] = useState('')
   const [muteMergeMode, setMuteMergeMode] = useState<MuteMergeMode>('add-to')
+  const [includeNip85, setIncludeNip85] = useState(false)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
+
+  // Legacy login-time subscription (dashboard SQLite, provisioned over the
+  // orchestrator's VPC HTTP API). Fallback source of the user's
+  // subscription pubkey when no NIP-59 Status rumor has been stored.
+  const { subscriptionPubkey: legacySubscriptionPubkey } = useSubscriptionPubkey()
+  // Resolved once per dialog open so the UI can show which key will sign
+  // and gate the kind-30382 option on subscription routing.
+  const [routing, setRouting] = useState<PickRequestPTagResult | null>(null)
 
   // Reset state on open/close. When the parent already supplies the output
   // tags (prefetchedOutput), use them immediately and skip any network
@@ -153,10 +166,12 @@ export function ExportResultsDialog({
       setOutputEvent(null)
       setOutputError(null)
       setStatus({ kind: 'idle' })
+      setRouting(null)
       return
     }
     setTarget(availableTargets[0])
     setThreshold(DEFAULT_THRESHOLD)
+    setIncludeNip85(false)
     setStatus({ kind: 'idle' })
     setOutputError(null)
 
@@ -183,6 +198,36 @@ export function ExportResultsDialog({
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, outputNaddr, prefetchedOutput])
+
+  // Resolve request routing for the assertions target whenever the dialog
+  // opens or the legacy subscription loads. kind-30382 is only offered when
+  // the request will be addressed to a subscription pubkey, so that the
+  // orchestrator signs it from the user's own point of view.
+  useEffect(() => {
+    if (!open || !ORCHESTRATOR_ASSERTIONS_PUBKEY) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const signer = await getNip07Signer()
+        const user = signer ? await signer.user() : null
+        const resolved = pickRequestPTag({
+          userPubkey: user?.pubkey ?? null,
+          servicePubkey: ORCHESTRATOR_ASSERTIONS_PUBKEY,
+          serviceId: ORCHESTRATOR_ASSERTIONS_SERVICE_ID,
+          fallbackSubscriptionPubkey: legacySubscriptionPubkey,
+        })
+        if (cancelled) return
+        setRouting(resolved)
+        setIncludeNip85(resolved.viaSubscription)
+      } catch (err) {
+        console.warn('[export] routing resolution failed', err)
+        if (!cancelled) setRouting(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [open, legacySubscriptionPubkey])
 
   // Reset title/dTag to per-target defaults when target changes
   useEffect(() => {
@@ -236,37 +281,52 @@ export function ExportResultsDialog({
       let unsignedEvent
 
       if (target === 'tsm-assertions') {
+        // Read the source POV's declared subject type from its own
+        // ['config','type', …] tag instead of inferring from result tag
+        // letters — the two can legitimately diverge (e.g. an event-ranking
+        // POV whose config still targets pubkeys). Fall back to 'p' when the
+        // output omits the tag, matching the pre-existing default.
         const configType =
-          validation.subjects[0]?.tagLetter ?? 'p'
+          outputEvent?.tags.find(
+            t => t[0] === 'config' && t[1] === 'type',
+          )?.[2] ?? 'p'
         const relayHints = getRelayHintsFromNaddr(outputNaddr)
 
-        // Resolve the user's identity pubkey via NIP-07 so we can pick
-        // a subscription pubkey if one exists. When the assertions
-        // service runs in public_service mode (today through R2),
-        // pickRequestPTag falls through to ORCHESTRATOR_ASSERTIONS_PUBKEY
-        // and behavior is unchanged. After R3's flip to
-        // subscription_service, the user MUST have an active
-        // subscription or the orchestrator will reject the request.
-        const assertionsSigner = await getNip07Signer()
-        if (!assertionsSigner) throw new Error('Nostr signer not available')
-        const assertionsUser = await assertionsSigner.user()
-        if (!assertionsUser.pubkey) {
-          throw new Error('Could not resolve user pubkey')
+        // Routing was resolved when the dialog opened (effect above).
+        // Re-resolve only if that failed, so a late-loading signer still
+        // yields a correct `p` tag.
+        let effectiveRouting = routing
+        if (!effectiveRouting) {
+          const assertionsSigner = await getNip07Signer()
+          if (!assertionsSigner) throw new Error('Nostr signer not available')
+          const assertionsUser = await assertionsSigner.user()
+          if (!assertionsUser.pubkey) {
+            throw new Error('Could not resolve user pubkey')
+          }
+          effectiveRouting = pickRequestPTag({
+            userPubkey: assertionsUser.pubkey,
+            servicePubkey: ORCHESTRATOR_ASSERTIONS_PUBKEY,
+            serviceId: ORCHESTRATOR_ASSERTIONS_SERVICE_ID,
+            fallbackSubscriptionPubkey: legacySubscriptionPubkey,
+          })
         }
 
-        const routing = pickRequestPTag({
-          userPubkey: assertionsUser.pubkey,
-          servicePubkey: ORCHESTRATOR_ASSERTIONS_PUBKEY,
-          serviceId: ORCHESTRATOR_ASSERTIONS_SERVICE_ID,
-        })
-
+        // kind-30382 is only valid when signed by the user's subscription
+        // key; the orchestrator rejects it otherwise, so never send it
+        // under service-key routing.
+        const wantsNip85 = includeNip85 && effectiveRouting.viaSubscription
+        const outputKinds = wantsNip85 ? [37575, 30382] : [37575]
         unsignedEvent = buildAssertionRequestEvent({
           povNaddr: outputNaddr,
           configType,
           dTag: dTag.trim() || `trustr_assertions_${preset}`,
           title: title.trim() || undefined,
           relayHints,
-          signingPubkey: routing.viaSubscription ? routing.pTagPubkey : undefined,
+          outputKinds,
+          threshold,
+          signingPubkey: effectiveRouting.viaSubscription
+            ? effectiveRouting.pTagPubkey
+            : undefined,
         })
       } else if (target === 'primary-mute-list') {
         if (!filterResult) throw new Error('No subjects to export')
@@ -360,30 +420,52 @@ export function ExportResultsDialog({
               </div>
             </div>
 
-            {target !== 'tsm-assertions' && (
+            <div>
+              <label className="field-label">
+                Rank threshold: {threshold.toFixed(2)}
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={threshold}
+                onChange={e => setThreshold(parseFloat(e.target.value))}
+                className="w-full"
+              />
+              {filterResult && (
+                <p className="field-hint">
+                  {filterResult.selected.length} of {filterResult.totalConsidered} subjects
+                  will be included
+                  {filterResult.capped
+                    ? ` (capped at ${DEFAULT_MAX_ITEMS}; ${filterResult.totalMatchingThreshold} matched threshold)`
+                    : ''}
+                  .
+                </p>
+              )}
+            </div>
+
+            {target === 'tsm-assertions' && (
               <div>
-                <label className="field-label">
-                  Rank threshold: {threshold.toFixed(2)}
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={includeNip85 && Boolean(routing?.viaSubscription)}
+                    disabled={!routing?.viaSubscription}
+                    onChange={e => setIncludeNip85(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Include NIP-85 assertions (kind 30382), signed from your point of view
+                  </span>
                 </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={threshold}
-                  onChange={e => setThreshold(parseFloat(e.target.value))}
-                  className="w-full"
-                />
-                {filterResult && (
-                  <p className="field-hint">
-                    {filterResult.selected.length} of {filterResult.totalConsidered} subjects
-                    will be included
-                    {filterResult.capped
-                      ? ` (capped at ${DEFAULT_MAX_ITEMS}; ${filterResult.totalMatchingThreshold} matched threshold)`
-                      : ''}
-                    .
-                  </p>
-                )}
+                <p className="field-hint">
+                  {routing?.viaSubscription
+                    ? `Signed by your TrustR subscription key ${routing.pTagPubkey.slice(0, 8)}…; the kind-37575 assertions use the same key.`
+                    : routing
+                      ? 'No TrustR subscription found for this account (log in to the dashboard to get one). Only kind-37575 assertions, signed by the shared service key, will be published.'
+                      : 'Resolving signing key…'}
+                </p>
               </div>
             )}
 

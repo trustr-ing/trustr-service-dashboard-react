@@ -10,6 +10,13 @@ export interface PickRequestPTagArgs {
   servicePubkey: string
   /** Service id matching `["d", <serviceId>]` on the announcement. */
   serviceId: string
+  /**
+   * Subscription pubkey from a source other than the NIP-59 store. Today
+   * this is the dashboard's login-time auto-enroll (orchestrator VPC HTTP
+   * API, surfaced by `/api/subscription`). Consulted only when no stored
+   * NIP-59 subscription authorizes `serviceId`. Null/undefined = none.
+   */
+  fallbackSubscriptionPubkey?: string | null
 }
 
 export interface PickRequestPTagResult {
@@ -38,7 +45,7 @@ export interface PickRequestPTagResult {
  * Pure function (no React); safe for use inside event-build code paths.
  */
 export function pickRequestPTag(args: PickRequestPTagArgs): PickRequestPTagResult {
-  const { userPubkey, servicePubkey, serviceId } = args
+  const { userPubkey, servicePubkey, serviceId, fallbackSubscriptionPubkey } = args
 
   if (userPubkey) {
     const subscription = findActiveSubscriptionForService(userPubkey, serviceId)
@@ -48,6 +55,13 @@ export function pickRequestPTag(args: PickRequestPTagArgs): PickRequestPTagResul
         viaSubscription: true,
         subscription,
       }
+    }
+  }
+
+  if (fallbackSubscriptionPubkey) {
+    return {
+      pTagPubkey: fallbackSubscriptionPubkey,
+      viaSubscription: true,
     }
   }
 
