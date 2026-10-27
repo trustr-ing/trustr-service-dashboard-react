@@ -657,10 +657,10 @@ export function ExportResultsDialog({
                   <p className="text-xs text-green-800 dark:text-green-200 mt-2">
                     Provider list published to {providerStatus.publishedTo.length} relay(s)
                     {providerStatus.replacedExisting
-                      ? ', replacing your previous 30382:rank provider'
+                      ? ', refreshing the existing entry for this key'
                       : ''}
                     {providerStatus.preservedEntries > 0
-                      ? `, keeping ${providerStatus.preservedEntries} other provider entr${providerStatus.preservedEntries === 1 ? 'y' : 'ies'}`
+                      ? `, keeping ${providerStatus.preservedEntries} other entr${providerStatus.preservedEntries === 1 ? 'y' : 'ies'} (other providers included)`
                       : ''}
                     .
                   </p>

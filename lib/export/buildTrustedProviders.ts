@@ -21,15 +21,18 @@ export interface BuildTrustedProvidersArgs {
 
 export interface BuildTrustedProvidersResult {
   event: NDKEvent
-  /** True when the user already had a `30382:rank` provider that is now replaced. */
+  /** True when the list already named this provider key for `30382:rank` (entry refreshed). */
   replacedExisting: boolean
-  /** Number of other provider entries carried over unchanged. */
+  /** Number of other entries carried over unchanged, including other `30382:rank` providers. */
   preservedEntries: number
 }
 
 /**
- * Build the user's kind-10040 list with `30382:rank` pointed at
- * `providerPubkey`, preserving every other entry of their existing list.
+ * Build the user's kind-10040 list with a `30382:rank` entry for
+ * `providerPubkey`. NIP-85 allows several providers per `kind:tag`, so every
+ * other entry is preserved, including other `30382:rank` providers; only a
+ * prior entry for this same key is replaced. Encrypted private entries in
+ * `content` are carried over untouched.
  *
  * The existing list is looked up on the default pool plus the user's
  * NIP-65 write relays, where replaceable events live, so that a list kept
@@ -71,7 +74,9 @@ export async function buildTrustedProvidersEvent(
   }
 
   const existingTags = existing?.tags ?? []
-  const preserved = existingTags.filter(t => t[0] !== RANK_PROVIDER_TAG)
+  const preserved = existingTags.filter(
+    t => !(t[0] === RANK_PROVIDER_TAG && t[1] === args.providerPubkey),
+  )
   const replacedExisting = existingTags.length !== preserved.length
 
   const event = new NDKEvent(ndk)
