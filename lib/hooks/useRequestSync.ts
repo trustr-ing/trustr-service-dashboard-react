@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { NDKEvent, NDKFilter, NDKSubscription } from '@nostr-dev-kit/ndk'
-import { getNDK, connectNDK } from '@/lib/nostr/ndk'
+import { connectNDK } from '@/lib/nostr/ndk'
 import { buildOutputEventNaddrFromNdkEvent } from '@/lib/nostr/naddr'
 import {
   getFeedbackMessage,
