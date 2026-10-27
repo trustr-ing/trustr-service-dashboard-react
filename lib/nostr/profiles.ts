@@ -1,5 +1,5 @@
-import { NDKRelaySet, type NDKEvent } from '@nostr-dev-kit/ndk'
-import { connectNDK, PROFILE_READ_RELAYS } from './ndk'
+import type { NDKEvent } from '@nostr-dev-kit/ndk'
+import { collectEvents, connectNDK, relaySetFor, PROFILE_READ_RELAYS } from './ndk'
 
 export interface NostrProfile {
   pubkey: string
@@ -48,23 +48,6 @@ export async function fetchProfile(pubkey: string): Promise<NostrProfile> {
   return profiles.get(pubkey) ?? { pubkey }
 }
 
-/**
- * Relay set for kind-0 lookups: the app relays plus profile aggregators.
- * Relays are added to the pool on first use; NDK connects in the background
- * and the per-chunk timeout bounds the wait for any that are slow.
- */
-function profileRelaySet(ndk: Awaited<ReturnType<typeof connectNDK>>): NDKRelaySet {
-  for (const url of PROFILE_READ_RELAYS) {
-    if (!ndk.pool.getRelay(url, false)) {
-      try {
-        ndk.addExplicitRelay(url, undefined, true)
-      } catch (err) {
-        console.warn('[profiles] failed to add relay', url, err)
-      }
-    }
-  }
-  return NDKRelaySet.fromRelayUrls(PROFILE_READ_RELAYS, ndk, true)
-}
 
 /**
  * Fetch kind-0 profiles for many pubkeys with one relay request per chunk
@@ -94,22 +77,20 @@ export async function fetchProfiles(
   if (toFetch.length === 0) return profiles
 
   const ndk = await connectNDK()
-  const relaySet = profileRelaySet(ndk)
+  const relaySet = await relaySetFor(ndk, PROFILE_READ_RELAYS)
 
   for (let i = 0; i < toFetch.length; i += PROFILE_CHUNK_SIZE) {
     const chunk = toFetch.slice(i, i + PROFILE_CHUNK_SIZE)
     const newest = new Map<string, NDKEvent>()
     try {
-      const events = await Promise.race([
-        ndk.fetchEvents(
-          { kinds: [0], authors: chunk, limit: chunk.length },
-          { closeOnEose: true, groupable: false },
-          relaySet,
-        ),
-        new Promise<Set<NDKEvent>>(resolve =>
-          setTimeout(() => resolve(new Set()), PROFILE_CHUNK_TIMEOUT_MS),
-        ),
-      ])
+      // Resolves on end-of-stream or at the timeout with whatever arrived;
+      // an unreachable relay in the set no longer discards the others' answers.
+      const events = await collectEvents(
+        ndk,
+        { kinds: [0], authors: chunk, limit: chunk.length },
+        relaySet,
+        PROFILE_CHUNK_TIMEOUT_MS,
+      )
       for (const event of events) {
         const prior = newest.get(event.pubkey)
         if (!prior || (event.created_at ?? 0) > (prior.created_at ?? 0)) newest.set(event.pubkey, event)

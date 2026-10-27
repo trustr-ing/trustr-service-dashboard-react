@@ -1,4 +1,13 @@
-import NDK, { NDKEvent, NDKNip07Signer, NDKPrivateKeySigner } from '@nostr-dev-kit/ndk'
+import NDK, {
+  NDKEvent,
+  NDKNip07Signer,
+  NDKPrivateKeySigner,
+  NDKRelaySet,
+  NDKRelayStatus,
+  type NDKFilter,
+  type NDKRelay,
+  type NDKSubscription,
+} from '@nostr-dev-kit/ndk'
 
 const DEFAULT_RELAYS = [
   'wss://relay.trustr.ing',
@@ -14,6 +23,18 @@ export const PROFILE_READ_RELAYS = [
   ...DEFAULT_RELAYS,
   'wss://purplepag.es',
   'wss://relay.nostr.band',
+]
+
+/**
+ * Extra relays consulted when resolving ranked event references. The
+ * semantic service's corpus includes Mastodon-bridged posts that only the
+ * Mostr bridge carries. Its advertised address, relay.mostr.pub, answers
+ * with a redirect to relay.ditto.pub, which browser WebSockets do not
+ * follow, so the final address is used. Read only.
+ */
+export const EVENT_READ_RELAYS = [
+  ...DEFAULT_RELAYS,
+  'wss://relay.ditto.pub',
 ]
 
 /**
@@ -69,3 +90,81 @@ export async function publishEvent(event: NDKEvent): Promise<void> {
 }
 
 export { NDKEvent }
+
+/** How long to give a relay that was just added to the pool to connect. */
+const NEW_RELAY_CONNECT_WAIT_MS = 3000
+
+/**
+ * Build a relay set from `urls`, adding any relay missing from the pool.
+ * NDK signals end-of-stream from the relays connected at subscribe time,
+ * so a relay added a moment ago would be skipped silently; newly added
+ * relays therefore get a bounded wait to connect before the set is used.
+ * Unreachable relays cost at most that wait once, then nothing.
+ */
+export async function relaySetFor(ndk: NDK, urls: string[]): Promise<NDKRelaySet> {
+  const added: NDKRelay[] = []
+  for (const url of urls) {
+    if (!ndk.pool.getRelay(url, false)) {
+      try {
+        added.push(ndk.addExplicitRelay(url, undefined, true))
+      } catch (err) {
+        console.warn('[ndk] failed to add relay', url, err)
+      }
+    }
+  }
+  const pending = added.filter(relay => relay.status !== NDKRelayStatus.CONNECTED)
+  if (pending.length > 0) {
+    await new Promise<void>(resolve => {
+      const timer = setTimeout(resolve, NEW_RELAY_CONNECT_WAIT_MS)
+      let remaining = pending.length
+      for (const relay of pending) {
+        relay.once('connect', () => {
+          remaining -= 1
+          if (remaining === 0) {
+            clearTimeout(timer)
+            resolve()
+          }
+        })
+      }
+    })
+  }
+  return NDKRelaySet.fromRelayUrls(urls, ndk, true)
+}
+
+/**
+ * Run a one-shot subscription and resolve with every event received by the
+ * time all relays signalled end-of-stream, or by `timeoutMs`, whichever is
+ * first. Unlike `ndk.fetchEvents`, a relay that never connects or never
+ * answers cannot make us lose what the others already delivered.
+ */
+export async function collectEvents(
+  ndk: NDK,
+  filter: NDKFilter,
+  relaySet: NDKRelaySet | undefined,
+  timeoutMs: number,
+): Promise<NDKEvent[]> {
+  return new Promise(resolve => {
+    const events = new Map<string, NDKEvent>()
+    let settled = false
+    let subscription: NDKSubscription | undefined
+    const finish = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      try { subscription?.stop() } catch { /* ignore */ }
+      resolve(Array.from(events.values()))
+    }
+    const timer = setTimeout(finish, timeoutMs)
+    try {
+      subscription = ndk.subscribe(filter, { closeOnEose: true, groupable: false, relaySet }, false)
+      subscription.on('event', (event: NDKEvent) => {
+        if (event.id) events.set(event.id, event)
+      })
+      subscription.on('eose', finish)
+      subscription.start()
+    } catch (err) {
+      console.warn('[ndk] subscription failed', err)
+      finish()
+    }
+  })
+}

@@ -65,27 +65,45 @@ export function ResultsTable({ results, title, description, showProfiles = true 
     return Math.max(span * 0.06, 0.01)
   }, [rankBounds.max, rankBounds.min])
 
+  // Keyed on the set of subjects, not the array identity: output pages
+  // arrive one by one and each arrival used to restart the whole load and
+  // replace the map, which flickered. New profiles are merged in.
+  const subjectsKey = useMemo(
+    () => (canShowProfiles ? results.map(result => result.subject).join('\n') : ''),
+    [canShowProfiles, results],
+  )
+
   useEffect(() => {
-    if (!canShowProfiles || results.length === 0) return
+    if (!subjectsKey) return
+    let cancelled = false
+    const pubkeys = subjectsKey.split('\n')
+
+    const merge = (incoming: Map<string, NostrProfile>) => {
+      if (cancelled) return
+      setProfiles(prev => {
+        const next = new Map(prev)
+        for (const [pubkey, profile] of incoming) next.set(pubkey, profile)
+        return next
+      })
+    }
 
     const loadProfiles = async () => {
       setLoadingProfiles(true)
       try {
-        const pubkeys = results.map(result => result.subject)
-        // Render names as each chunk of kind-0 events arrives instead of
-        // waiting for the whole set; a thousand-row table used to show
-        // nothing until every lookup had finished.
-        const fetchedProfiles = await fetchProfiles(pubkeys, snapshot => setProfiles(snapshot))
-        setProfiles(fetchedProfiles)
+        const fetchedProfiles = await fetchProfiles(pubkeys, merge)
+        merge(fetchedProfiles)
       } catch (err) {
         console.error('Failed to fetch profiles:', err)
       } finally {
-        setLoadingProfiles(false)
+        if (!cancelled) setLoadingProfiles(false)
       }
     }
 
     loadProfiles()
-  }, [canShowProfiles, results])
+    return () => {
+      cancelled = true
+    }
+  }, [subjectsKey])
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
