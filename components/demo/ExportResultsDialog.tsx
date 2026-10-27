@@ -29,6 +29,7 @@ import {
   getRelayHintsFromNaddr,
 } from '@/lib/export/fetchOutputEvent'
 import { signAndPublishExport } from '@/lib/export/publishExport'
+import { buildTrustedProvidersEvent } from '@/lib/export/buildTrustedProviders'
 import {
   DEFAULT_MAX_ITEMS,
   DEFAULT_THRESHOLD,
@@ -117,7 +118,20 @@ const TARGET_LABELS: Record<ExportTarget, string> = {
 type Status =
   | { kind: 'idle' }
   | { kind: 'publishing' }
-  | { kind: 'success'; eventId: string; publishedTo: string[]; failedTo: string[] }
+  | {
+      kind: 'success'
+      eventId: string
+      publishedTo: string[]
+      failedTo: string[]
+      /** Set when kind-30382 was requested: the pubkey that will sign them. */
+      nip85Provider?: string
+    }
+  | { kind: 'error'; message: string }
+
+type ProviderStatus =
+  | { kind: 'idle' }
+  | { kind: 'publishing' }
+  | { kind: 'success'; publishedTo: string[]; replacedExisting: boolean; preservedEntries: number }
   | { kind: 'error'; message: string }
 
 function isListTarget(target: ExportTarget): target is ListExportTarget {
@@ -157,6 +171,9 @@ export function ExportResultsDialog({
   // Resolved once per dialog open so the UI can show which key will sign
   // and gate the kind-30382 option on subscription routing.
   const [routing, setRouting] = useState<PickRequestPTagResult | null>(null)
+  // Follow-up action after a 30382 export: publish the user's kind-10040
+  // NIP-85 provider list pointing at the subscription key.
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus>({ kind: 'idle' })
 
   // Reset state on open/close. When the parent already supplies the output
   // tags (prefetchedOutput), use them immediately and skip any network
@@ -167,6 +184,7 @@ export function ExportResultsDialog({
       setOutputError(null)
       setStatus({ kind: 'idle' })
       setRouting(null)
+      setProviderStatus({ kind: 'idle' })
       return
     }
     setTarget(availableTargets[0])
@@ -279,6 +297,7 @@ export function ExportResultsDialog({
     setStatus({ kind: 'publishing' })
     try {
       let unsignedEvent
+      let nip85Provider: string | null = null
 
       if (target === 'tsm-assertions') {
         // Read the source POV's declared subject type from its own
@@ -316,6 +335,7 @@ export function ExportResultsDialog({
         // under service-key routing.
         const wantsNip85 = includeNip85 && effectiveRouting.viaSubscription
         const outputKinds = wantsNip85 ? [37575, 30382] : [37575]
+        nip85Provider = wantsNip85 ? effectiveRouting.pTagPubkey : null
         unsignedEvent = buildAssertionRequestEvent({
           povNaddr: outputNaddr,
           configType,
@@ -359,12 +379,48 @@ export function ExportResultsDialog({
         eventId: result.signedEventId,
         publishedTo: result.publishedTo,
         failedTo: result.failedTo,
+        nip85Provider: nip85Provider ?? undefined,
       })
     } catch (err) {
       console.error('[export] publish failed:', err)
       setStatus({
         kind: 'error',
         message: err instanceof Error ? err.message : 'Export failed',
+      })
+    }
+  }
+
+  /**
+   * Publish (or update) the user's kind-10040 list so NIP-85 clients read
+   * `30382:rank` assertions from the subscription key that signs them.
+   * This is the TSM -> NIP-85 one-way projection described in
+   * tsm/nip85-bridge; it only points at a provider and never touches the
+   * assertions themselves.
+   */
+  const handlePublishProviders = async (providerPubkey: string) => {
+    setProviderStatus({ kind: 'publishing' })
+    try {
+      const signer = await getNip07Signer()
+      if (!signer) throw new Error('Nostr signer not available')
+      const user = await signer.user()
+      if (!user.pubkey) throw new Error('Could not resolve user pubkey')
+
+      const built = await buildTrustedProvidersEvent({
+        userPubkey: user.pubkey,
+        providerPubkey,
+      })
+      const result = await signAndPublishExport(built.event)
+      setProviderStatus({
+        kind: 'success',
+        publishedTo: result.publishedTo,
+        replacedExisting: built.replacedExisting,
+        preservedEntries: built.preservedEntries,
+      })
+    } catch (err) {
+      console.error('[export] 10040 publish failed:', err)
+      setProviderStatus({
+        kind: 'error',
+        message: err instanceof Error ? err.message : 'Failed to publish provider list',
       })
     }
   }
@@ -576,6 +632,45 @@ export function ExportResultsDialog({
               <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
                 Did not reach: {status.failedTo.join(', ')}
               </p>
+            )}
+            {status.nip85Provider && (
+              <div className="mt-3 border-t border-green-200 dark:border-green-800 pt-3">
+                <p className="text-sm text-green-900 dark:text-green-100">
+                  Your NIP-85 rank assertions (kind 30382) will be signed by{' '}
+                  <code>{status.nip85Provider.slice(0, 8)}…</code>, your TrustR
+                  subscription key. Point your NIP-85 provider list at it so other
+                  clients use these ranks.
+                </p>
+                {providerStatus.kind !== 'success' && (
+                  <Button
+                    type="button"
+                    className="mt-2"
+                    disabled={providerStatus.kind === 'publishing'}
+                    onClick={() => void handlePublishProviders(status.nip85Provider!)}
+                  >
+                    {providerStatus.kind === 'publishing'
+                      ? 'Publishing provider list…'
+                      : 'Set as my NIP-85 rank provider (kind 10040)'}
+                  </Button>
+                )}
+                {providerStatus.kind === 'success' && (
+                  <p className="text-xs text-green-800 dark:text-green-200 mt-2">
+                    Provider list published to {providerStatus.publishedTo.length} relay(s)
+                    {providerStatus.replacedExisting
+                      ? ', replacing your previous 30382:rank provider'
+                      : ''}
+                    {providerStatus.preservedEntries > 0
+                      ? `, keeping ${providerStatus.preservedEntries} other provider entr${providerStatus.preservedEntries === 1 ? 'y' : 'ies'}`
+                      : ''}
+                    .
+                  </p>
+                )}
+                {providerStatus.kind === 'error' && (
+                  <p className="text-xs text-red-700 dark:text-red-300 mt-2">
+                    {providerStatus.message}
+                  </p>
+                )}
+              </div>
             )}
           </div>
         )}
