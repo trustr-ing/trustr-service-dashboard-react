@@ -7,6 +7,16 @@ const DEFAULT_RELAYS = [
 ]
 
 /**
+ * Extra relays consulted for kind-0 profile lookups only. These are
+ * profile aggregators / indexers: read from them, never publish to them.
+ */
+export const PROFILE_READ_RELAYS = [
+  ...DEFAULT_RELAYS,
+  'wss://purplepag.es',
+  'wss://relay.nostr.band',
+]
+
+/**
  * How long connectNDK waits for relays before proceeding with whatever is
  * connected. NDK's untimed `connect()` resolves only once EVERY relay in
  * the pool is connected, so a single unreachable relay would hang every

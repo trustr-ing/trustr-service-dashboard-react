@@ -1,5 +1,5 @@
-import { NDKUser, type NDKEvent } from '@nostr-dev-kit/ndk'
-import { connectNDK } from './ndk'
+import { NDKRelaySet, type NDKEvent } from '@nostr-dev-kit/ndk'
+import { connectNDK, PROFILE_READ_RELAYS } from './ndk'
 
 export interface NostrProfile {
   pubkey: string
@@ -42,41 +42,28 @@ function profileFromEvent(event: NDKEvent): NostrProfile {
 }
 
 export async function fetchProfile(pubkey: string): Promise<NostrProfile> {
-  // Check cache first
-  if (profileCache.has(pubkey)) {
-    return profileCache.get(pubkey)!
-  }
+  const cached = profileCache.get(pubkey)
+  if (cached) return cached
+  const profiles = await fetchProfiles([pubkey])
+  return profiles.get(pubkey) ?? { pubkey }
+}
 
-  try {
-    const ndk = await connectNDK()
-
-    const user = new NDKUser({ pubkey })
-    user.ndk = ndk
-
-    await Promise.race([
-      user.fetchProfile(),
-      new Promise<void>((_, reject) =>
-        setTimeout(() => reject(new Error('profile fetch timeout')), PROFILE_CHUNK_TIMEOUT_MS),
-      ),
-    ])
-
-    const profile: NostrProfile = {
-      pubkey,
-      name: user.profile?.name,
-      display_name: user.profile?.displayName,
-      picture: user.profile?.image,
-      about: user.profile?.about,
-      nip05: user.profile?.nip05,
+/**
+ * Relay set for kind-0 lookups: the app relays plus profile aggregators.
+ * Relays are added to the pool on first use; NDK connects in the background
+ * and the per-chunk timeout bounds the wait for any that are slow.
+ */
+function profileRelaySet(ndk: Awaited<ReturnType<typeof connectNDK>>): NDKRelaySet {
+  for (const url of PROFILE_READ_RELAYS) {
+    if (!ndk.pool.getRelay(url, false)) {
+      try {
+        ndk.addExplicitRelay(url, undefined, true)
+      } catch (err) {
+        console.warn('[profiles] failed to add relay', url, err)
+      }
     }
-
-    profileCache.set(pubkey, profile)
-    return profile
-  } catch (err) {
-    console.warn('Failed to fetch profile for', pubkey.slice(0, 8), err)
-    const fallbackProfile: NostrProfile = { pubkey }
-    profileCache.set(pubkey, fallbackProfile)
-    return fallbackProfile
   }
+  return NDKRelaySet.fromRelayUrls(PROFILE_READ_RELAYS, ndk, true)
 }
 
 /**
@@ -107,6 +94,7 @@ export async function fetchProfiles(
   if (toFetch.length === 0) return profiles
 
   const ndk = await connectNDK()
+  const relaySet = profileRelaySet(ndk)
 
   for (let i = 0; i < toFetch.length; i += PROFILE_CHUNK_SIZE) {
     const chunk = toFetch.slice(i, i + PROFILE_CHUNK_SIZE)
@@ -116,6 +104,7 @@ export async function fetchProfiles(
         ndk.fetchEvents(
           { kinds: [0], authors: chunk, limit: chunk.length },
           { closeOnEose: true, groupable: false },
+          relaySet,
         ),
         new Promise<Set<NDKEvent>>(resolve =>
           setTimeout(() => resolve(new Set()), PROFILE_CHUNK_TIMEOUT_MS),

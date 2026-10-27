@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { format } from 'date-fns'
 import { useRequestMonitor } from '@/lib/hooks/useRequestMonitor'
-import { ResultsTable, parseOutputEventResults } from '@/components/ResultsTable'
+import { ResultsTable, collectRankedResults } from '@/components/ResultsTable'
 import { deleteEvent } from '@/lib/nostr/deletion'
 import { buildOutputEventNaddr } from '@/lib/nostr/naddr'
 import { isTerminalSuccessFeedback } from '@/lib/nostr/events'
@@ -34,6 +34,9 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
   const { feedbackEvents, outputEvents, isConnected } = useRequestMonitor(
     request?.eventId || null
   )
+  // Output pages arrive in any order and share timestamps; order them by
+  // page number and number the results in the service's render order.
+  const rankedResults = useMemo(() => collectRankedResults(outputEvents), [outputEvents])
 
   // Share the same terminal-success semantics used across demo and sync flows
   // so request status promotion does not depend on exact feedback wording.
@@ -219,8 +222,8 @@ export default function RequestDetailPage({ params }: { params: Promise<{ id: st
 
       {outputEvents.length > 0 && (
         <ResultsTable
-          results={outputEvents.flatMap(output => parseOutputEventResults(output))}
-          title={`Ranked Results (${outputEvents.flatMap(output => parseOutputEventResults(output)).length})`}
+          results={rankedResults}
+          title={`Ranked Results (${rankedResults.length})`}
           description="Top ranked event references from the service"
         />
       )}

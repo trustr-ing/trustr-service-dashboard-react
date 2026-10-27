@@ -5,15 +5,22 @@ import { Button } from '@/components/ui/button'
 import { fetchProfiles, getDisplayName, type NostrProfile } from '@/lib/nostr/profiles'
 import { EventCard } from '@/components/EventCard'
 
-interface RankedResult {
+export interface RankedResult {
   subject: string
   resultTag: 'p' | 'e' | 'a'
   score: number
   povRank?: number
   confidence?: number
   rankingMetadata?: Record<string, unknown>
+  /** 1-based position in the service's render order (page, then tag order). */
   rank: number
+  /** Output page this result came from (from the `v:page` tag or `d` suffix). */
+  page: number
+  /** Position of the result tag within its page. */
+  order: number
 }
+
+export type ResultsSortOption = 'default' | 'default-desc' | 'rank-desc' | 'rank-asc' | 'subject-asc'
 
 interface ResultsTableProps {
   results: RankedResult[]
@@ -27,7 +34,7 @@ export function ResultsTable({ results, title, description, showProfiles = true 
   const [profiles, setProfiles] = useState<Map<string, NostrProfile>>(new Map())
   const [loadingProfiles, setLoadingProfiles] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortBy, setSortBy] = useState<'rank-desc' | 'rank-asc' | 'subject-asc'>('rank-desc')
+  const [sortBy, setSortBy] = useState<ResultsSortOption>('default')
   const [rankFocus, setRankFocus] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const resultsPerPage = 20
@@ -167,14 +174,15 @@ export function ResultsTable({ results, title, description, showProfiles = true 
     return Math.abs(result.score - rankFocus) <= rankFocusWindow
   })
 
+  // Service render order = page number, then tag position. Rank-value sorts
+  // fall back to it for ties, so equal scores keep the service's order.
+  const byRenderOrder = (a: RankedResult, b: RankedResult) => a.page - b.page || a.order - b.order
   const sortedResults = [...rankFilteredResults].sort((a, b) => {
-    if (sortBy === 'rank-asc') {
-      return a.score - b.score
-    }
-    if (sortBy === 'subject-asc') {
-      return a.subject.localeCompare(b.subject)
-    }
-    return b.score - a.score
+    if (sortBy === 'default') return byRenderOrder(a, b)
+    if (sortBy === 'default-desc') return byRenderOrder(b, a)
+    if (sortBy === 'rank-asc') return a.score - b.score || byRenderOrder(a, b)
+    if (sortBy === 'subject-asc') return a.subject.localeCompare(b.subject)
+    return b.score - a.score || byRenderOrder(a, b)
   })
 
   // Calculate pagination
@@ -251,9 +259,11 @@ export function ResultsTable({ results, title, description, showProfiles = true 
                 <select
                   id="results-sort"
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as 'rank-desc' | 'rank-asc' | 'subject-asc')}
+                  onChange={(e) => setSortBy(e.target.value as ResultsSortOption)}
                   className="text-xs border border-gray-300 dark:border-gray-600 rounded-md px-2 py-1 bg-white dark:bg-gray-800"
                 >
+                  <option value="default">Default (service order)</option>
+                  <option value="default-desc">Default (reversed)</option>
                   <option value="rank-desc">Rank value: high → low</option>
                   <option value="rank-asc">Rank value: low → high</option>
                   <option value="subject-asc">Subject: A → Z</option>
@@ -445,9 +455,42 @@ export function ResultsTable({ results, title, description, showProfiles = true 
   )
 }
 
-export function parseOutputEventResults(event: { tags: string[][] }): RankedResult[] {
+/**
+ * Page number of a kind-37573 output event: the `v:page` tag
+ * (`["v","page:23", …]`), else the numeric suffix of its `d` tag
+ * (`baseline_wot:23`), else 1 (the first page carries the bare `d`).
+ */
+export function getOutputEventPage(event: { tags: string[][] }): number {
+  const tags = event.tags || []
+  const vPage = tags.find(tag => tag[0] === 'v' && typeof tag[1] === 'string' && tag[1].startsWith('page:'))?.[1]
+  if (vPage) {
+    const n = parseInt(vPage.slice('page:'.length), 10)
+    if (Number.isFinite(n) && n > 0) return n
+  }
+  const dTag = tags.find(tag => tag[0] === 'd')?.[1] ?? ''
+  const suffix = dTag.includes(':') ? dTag.slice(dTag.lastIndexOf(':') + 1) : ''
+  const n = parseInt(suffix, 10)
+  return Number.isFinite(n) && n > 0 ? n : 1
+}
+
+/**
+ * Parse every output page into one list in the service's render order
+ * (page number, then tag position) and number it 1..N. Output events may
+ * arrive from relays in any order and often share a `created_at`, so the
+ * page number is the only reliable ordering.
+ */
+export function collectRankedResults(events: Array<{ tags: string[][] }>): RankedResult[] {
+  const results = events
+    .map(event => ({ page: getOutputEventPage(event), event }))
+    .sort((a, b) => a.page - b.page)
+    .flatMap(({ page, event }) => parseOutputEventResults(event, page))
+  return results.map((result, index) => ({ ...result, rank: index + 1 }))
+}
+
+export function parseOutputEventResults(event: { tags: string[][] }, page?: number): RankedResult[] {
   const tags = event.tags || []
   const resultTags = tags.filter((tag: string[]) => ['p', 'e', 'a'].includes(tag[0]) && tag[1])
+  const pageNumber = page ?? getOutputEventPage(event)
   
   const results: RankedResult[] = []
   let currentRank = 1
@@ -493,7 +536,9 @@ export function parseOutputEventResults(event: { tags: string[][] }): RankedResu
       povRank,
       confidence,
       rankingMetadata,
-      rank: currentRank++
+      rank: currentRank,
+      page: pageNumber,
+      order: currentRank++,
     })
   }
   
