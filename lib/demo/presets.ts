@@ -132,6 +132,13 @@ export function buildBaselineWotEvent(
     ['config', 'attenuation', '0.5'],
     ['config', 'rigor', '0.5'],
     ['config', 'precision', '0.00001'],
+    // Prune between degrees of separation: before expanding the next degree,
+    // drop newly discovered actors whose interim rank is below half of
+    // minrank, and keep at most 30k per iteration (highest interim rank
+    // first). Bounds the dominant fetch passes; pruned actors still appear
+    // as ranked subjects when above minrank.
+    ['config', 'prune_minimum', '0.5'],
+    ['config', 'prune_max_actors', '30000'],
     ['config', 'interpreters', JSON.stringify([
       {
         id: 'nostr-3',
